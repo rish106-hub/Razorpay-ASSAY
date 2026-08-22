@@ -260,7 +260,7 @@ Then update `context.md` with what shipped and what's next, and `/clear`.
 * Never run migrations, seeds, or destructive SQL against a production database. Local or a branched DB only.  
 * Never `git push --force` to `main`. `--force-with-lease` on your own branch is fine.  
 * Never edit generated files: `*.gen.*`, lockfiles by hand, `node_modules`, migrations already applied.  
-* Never commit: `.env*`, `.gstack/`, `context.md`, `PLAN.md`, `DEBT.md`, `SPEC.md`, `.claude/settings.local.json`.  
+* Never commit: `.env`, `.env.*`, `.gstack/`, `context.md`, `PLAN.md`, `DEBT.md`, `SPEC.md`, `.claude/settings.local.json`. `.env.example` is the only environment-file exception and contains names and safe placeholders only.
 * Never give an agent write access to a production database through an MCP server. Read-only, project-scoped.
 
 `.gitignore` must contain:
@@ -279,11 +279,7 @@ SPEC.md
 
 `.gstack/` holds `terminal-internal-token` and can hold `.auth.json`. It must not be committed.
 
-## 
-
-## 
-
-## 
+`context.md`, `PLAN.md`, `DEBT.md`, and `SPEC.md` are local working files. Before deleting a branch or workspace, move durable decisions into committed project documentation and move accepted unresolved debt into a GitHub issue or the project backlog. Never rely on an ignored file as the only copy of shared state.
 
 ## **\#9. STACK \- what is installed, what to use, what to skip**
 
