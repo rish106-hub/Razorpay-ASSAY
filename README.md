@@ -61,6 +61,18 @@ uv run python -m assay.cli.build_signal_observations \
   --outcome-window-end 2026-08-22
 ```
 
+Evaluate both signal units on the full eligible population, unseen-state
+holdout, and prospective temporal holdout. Review-capacity ties are retained
+and reported instead of silently broken.
+
+```bash
+uv run python -m assay.cli.evaluate_signals \
+  --observation-report data/generated/signal_observation/<run>.report.json \
+  --temporal-holdout-start 2026-01-01 \
+  --review-capacity 0.01 \
+  --false-positive-review-cost-inr 100
+```
+
 The resulting `adverse_event` artifacts keep SEBI and other-authority actions
 separate and name the target `adverse_regulatory_outcome`. They do not create a
 generic fraud label.
