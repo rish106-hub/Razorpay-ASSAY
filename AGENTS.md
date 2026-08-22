@@ -50,17 +50,17 @@ Skip the question only for: one-file typo fixes, doc-only edits, dependency bump
 
 | Task | Command |
 | ----- | ----- |
-| Install | `python3.12 -m venv .venv && ./.venv/bin/python -m pip install -r requirements-dev.txt` |
+| Install | `uv sync --locked` |
 | Dev server | `N/A - backend/data pipeline only until the evidence report layer exists` |
-| Test (all) | `./.venv/bin/python -m pytest` |
-| Test (single file) | `./.venv/bin/python -m pytest path/to/test_file.py` |
-| Lint | `./.venv/bin/python -m ruff check .` |
+| Test (all) | `uv run python -m pytest` |
+| Test (single file) | `uv run python -m pytest path/to/test_file.py` |
+| Lint | `uv run python -m ruff check .` |
 | Typecheck | `N/A - no mypy/pyright config yet; add before typed application modules expand` |
 | Build | `N/A - no packaged app yet; generated reports are pipeline artifacts` |
 | DB migrate | `N/A - DuckDB is the local query engine, not a migration-managed service` |
 | DB reset / seed | `N/A - use immutable raw inputs and regenerated Parquet artifacts` |
 
-* Package manager: **pip with `requirements-dev.txt` inside `.venv`** \- DO NOT use any other one until this file changes.  
+* Package manager: **uv 0.11.30 with `pyproject.toml` and generated `uv.lock`** \- DO NOT use any other one until this file changes.
 * Runtime \+ version: **Python 3.12**  
 * Env vars required for tests to pass: **none**. `DATA_GOV_IN_API_KEY` is required only for live MCA acquisition.  
 * Services that must be running locally: **none**.

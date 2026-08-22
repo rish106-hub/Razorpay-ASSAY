@@ -9,3 +9,6 @@ choosing a production architecture.
 
 See [the transferred project context](docs/PROJECT_CONTEXT.md) and the
 [data acquisition plan](docs/DATA_ACQUISITION.md).
+
+Install the locked Python 3.12 environment with `uv sync --locked`. Verify the
+backend with `uv run python -m ruff check .` and `uv run python -m pytest`.
