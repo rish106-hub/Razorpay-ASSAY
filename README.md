@@ -58,6 +58,17 @@ uv run python -m assay.cli.build_linkage_review \
   --nse-report data/generated/nse_canonicalisation/<snapshot>.report.json
 ```
 
+Save the completed CSV separately, then validate and apply it. The importer
+rejects changed source fields, missing reviewer identity, timestamps without a
+timezone, incomplete ambiguous candidate sets, and non-enum decisions.
+
+```bash
+uv run python -m assay.cli.apply_linkage_review \
+  --linkage-report data/generated/entity_linkage/<run>.report.json \
+  --review-report data/generated/linkage_review/<run>.report.json \
+  --completed-review-csv data/reviewed/linkage_review_completed.csv
+```
+
 Build the as-of shared-address and address-plus-registration-month signals. The
 outcome window starts the day after the MCA source cutoff, and entities with a
 known earlier regulatory outcome are excluded from evaluation.
