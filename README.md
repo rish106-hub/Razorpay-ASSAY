@@ -179,6 +179,26 @@ uv run python -m assay.cli.verify_controlled_benchmark \
   --run-directory data/generated/controlled_benchmark/run-v2-6e3ca5849b46
 ```
 
+## Real merchant-solvency baseline
+
+The separate IBBI/MCA model predicts a future public CIRP announcement from
+as-of company attributes. Colab performs compute-bounded candidate selection;
+the untouched unseen-geography and temporal holdouts stay local and unsampled.
+The downloaded package uses a checksum-verified, version-neutral preprocessing
+contract instead of loading a cross-version sklearn pickle.
+
+The frozen full-holdout results and honest deployment blockers are documented
+in [`docs/SOLVENCY_MODEL.md`](docs/SOLVENCY_MODEL.md). The output is
+`cirp_public_announcement_score`, never a fraud or payment-risk score.
+
+Verify a model package with:
+
+```bash
+PYTHONPATH=. uv run python -m assay.cli.verify_solvency_model \
+  --run-directory data/generated/solvency_model/<run> \
+  --load-model
+```
+
 The resulting `adverse_event` artifacts keep SEBI and other-authority actions
 separate and name the target `adverse_regulatory_outcome`. They do not create a
 generic fraud label.

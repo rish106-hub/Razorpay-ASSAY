@@ -34,7 +34,18 @@ companies after excluding 5,777 companies with a prior CIRP announcement. It
 has 1,823 observed outcomes, including 298 in the frozen unseen-geography slice
 and 408 in the prospective 2026 temporal slice. All three counts clear the
 predeclared minimum of 20, so the separate solvency target is `READY_TO_TRAIN`.
-No model metric is claimed until training and held-out evaluation complete.
+
+The compute-bounded Colab run selected a depth-4 XGBoost model at iteration
+265 using weighted validation PR-AUC. The unseen-geography holdout contains
+593,478 unsampled companies and 298 outcomes. Its PR-AUC is 0.49491; precision
+at 0.1% review capacity is 0.28620, recall is 0.57047, and lift is 569.97x.
+The prospective temporal holdout contains 296,955 unsampled companies and 328
+outcomes. Its PR-AUC is 0.34280; precision at 0.1% review capacity is 0.37710,
+recall is 0.34146, and lift is 341.41x. See `docs/SOLVENCY_MODEL.md`.
+
+The model decision is `EVALUATED_NOT_PRODUCTION_READY`. It remains blocked on
+IBBI reuse clearance, real merchant/payment telemetry, measured false-positive
+cost, and an approved risk-operations review budget.
 
 ## Leakage-safe signal population
 
