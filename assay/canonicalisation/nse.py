@@ -11,9 +11,9 @@ import pandas as pd
 import polars as pl
 from pydantic import BaseModel, ConfigDict, Field
 
-from assay.canonicalisation.mca import (
-    CanonicalPartArtifact,
-    _write_immutable_parquet,
+from assay.artifacts.parquet import (
+    ParquetArtifact,
+    write_immutable_parquet,
 )
 from assay.contracts.provenance import MerchantRiskAsset, load_and_validate_manifests
 
@@ -67,7 +67,7 @@ class NseCanonicalisationReport(BaseModel):
     missing_entity_name_rows: int = Field(ge=0)
     missing_event_date_rows: int = Field(ge=0)
     provenance_complete_assets: int = Field(ge=0)
-    parts: tuple[CanonicalPartArtifact, ...]
+    parts: tuple[ParquetArtifact, ...]
 
 
 def _normalised_name_expression(source_column: str) -> pl.Expr:
@@ -203,7 +203,7 @@ class NseCanonicaliser:
                 "NSE canonical snapshot output already exists."
             )
 
-        parts: list[CanonicalPartArtifact] = []
+        parts: list[ParquetArtifact] = []
         canonical_frames: list[pl.DataFrame] = []
         for asset in nse_assets:
             raw_asset_path = self._resolve(Path(asset.local_path))
@@ -256,7 +256,7 @@ class NseCanonicaliser:
             )
             canonical_frames.append(canonical_frame)
             parts.append(
-                _write_immutable_parquet(
+                write_immutable_parquet(
                     canonical_frame,
                     snapshot_directory / f"part-{asset.source_id}.parquet",
                     self._config.parquet_compression,

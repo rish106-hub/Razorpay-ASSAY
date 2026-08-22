@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 
+from assay.artifacts.parquet import ImmutableArtifactError
 from assay.canonicalisation.nse import (
     NseCanonicalisationConfig,
     NseCanonicalisationError,
@@ -15,7 +16,7 @@ from assay.canonicalisation.nse import (
 def main() -> int:
     try:
         report = NseCanonicaliser(NseCanonicalisationConfig()).run()
-    except NseCanonicalisationError as error:
+    except (NseCanonicalisationError, ImmutableArtifactError) as error:
         print(f"NSE canonicalisation failed: {error}", file=sys.stderr)
         return 1
     print(

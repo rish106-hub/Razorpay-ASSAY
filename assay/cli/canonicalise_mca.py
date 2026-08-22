@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 
+from assay.artifacts.parquet import ImmutableArtifactError
 from assay.canonicalisation.mca import (
     McaCanonicalisationConfig,
     McaCanonicalisationError,
@@ -15,7 +16,7 @@ from assay.canonicalisation.mca import (
 def main() -> int:
     try:
         report = McaCanonicaliser(McaCanonicalisationConfig()).run()
-    except McaCanonicalisationError as error:
+    except (McaCanonicalisationError, ImmutableArtifactError) as error:
         print(f"MCA canonicalisation failed: {error}", file=sys.stderr)
         return 1
     print(

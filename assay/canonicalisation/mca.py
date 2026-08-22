@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import tempfile
 from datetime import date
 from pathlib import Path
 
@@ -14,6 +13,11 @@ import polars as pl
 from pydantic import BaseModel, ConfigDict, Field
 
 from assay.acquisition.mca import McaAcquisitionCheckpoint
+from assay.artifacts.parquet import (
+    ParquetArtifact,
+    sha256_file,
+    write_immutable_parquet,
+)
 
 MCA_CANONICAL_SCHEMA_VERSION = "1.0.0"
 MCA_SOURCE_DATA_THROUGH = date(2023, 11, 3)
@@ -58,17 +62,6 @@ class McaCanonicalisationConfig(BaseModel):
     parquet_compression: str = "zstd"
 
 
-class CanonicalPartArtifact(BaseModel):
-    """Checksum and row count for one immutable Parquet artifact."""
-
-    model_config = ConfigDict(frozen=True)
-
-    path: str
-    rows: int = Field(ge=0)
-    bytes: int = Field(gt=0)
-    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-
-
 class McaCanonicalisationReport(BaseModel):
     """Quality evidence for one canonical MCA snapshot run."""
 
@@ -88,61 +81,9 @@ class McaCanonicalisationReport(BaseModel):
     missing_registration_date_rows: int = Field(ge=0)
     blank_address_rows: int = Field(ge=0)
     quality_status: str
-    staged_parts: tuple[CanonicalPartArtifact, ...]
-    company_parts: tuple[CanonicalPartArtifact, ...]
-    address_parts: tuple[CanonicalPartArtifact, ...]
-
-
-def _sha256_file(artifact_path: Path) -> str:
-    merchant_risk_digest = hashlib.sha256()
-    with artifact_path.open("rb") as artifact_file:
-        for artifact_chunk in iter(lambda: artifact_file.read(1024 * 1024), b""):
-            merchant_risk_digest.update(artifact_chunk)
-    return merchant_risk_digest.hexdigest()
-
-
-def _write_immutable_parquet(
-    merchant_risk_frame: pl.DataFrame,
-    artifact_path: Path,
-    compression: str,
-) -> CanonicalPartArtifact:
-    artifact_path.parent.mkdir(parents=True, exist_ok=True)
-    if artifact_path.exists():
-        raise McaCanonicalisationError(
-            f"Canonical artifact already exists: {artifact_path}"
-        )
-
-    temporary_path: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            dir=artifact_path.parent,
-            prefix=".assay-parquet-",
-            suffix=".parquet",
-            delete=False,
-        ) as temporary_artifact:
-            temporary_path = Path(temporary_artifact.name)
-        merchant_risk_frame.write_parquet(
-            temporary_path,
-            compression=compression,
-            statistics=True,
-        )
-        with temporary_path.open("rb") as temporary_file:
-            os.fsync(temporary_file.fileno())
-        os.link(temporary_path, artifact_path)
-    except FileExistsError as error:
-        raise McaCanonicalisationError(
-            f"Canonical artifact publish collision: {artifact_path}"
-        ) from error
-    finally:
-        if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
-
-    return CanonicalPartArtifact(
-        path=str(artifact_path),
-        rows=merchant_risk_frame.height,
-        bytes=artifact_path.stat().st_size,
-        sha256=_sha256_file(artifact_path),
-    )
+    staged_parts: tuple[ParquetArtifact, ...]
+    company_parts: tuple[ParquetArtifact, ...]
+    address_parts: tuple[ParquetArtifact, ...]
 
 
 def _canonical_company_frame(
@@ -277,9 +218,9 @@ class McaCanonicaliser:
                     f"Canonical snapshot output already exists: {output_path}"
                 )
 
-        staged_parts: list[CanonicalPartArtifact] = []
-        company_parts: list[CanonicalPartArtifact] = []
-        address_parts: list[CanonicalPartArtifact] = []
+        staged_parts: list[ParquetArtifact] = []
+        company_parts: list[ParquetArtifact] = []
+        address_parts: list[ParquetArtifact] = []
         expected_offset = 0
 
         for page_artifact in checkpoint.pages:
@@ -292,7 +233,7 @@ class McaCanonicaliser:
             ).name
             if not raw_page_path.is_file():
                 raise McaCanonicalisationError("MCA raw page is missing.")
-            if _sha256_file(raw_page_path) != page_artifact.sha256:
+            if sha256_file(raw_page_path) != page_artifact.sha256:
                 raise McaCanonicalisationError("MCA raw page checksum mismatch.")
 
             raw_page_payload = json.loads(raw_page_path.read_bytes())
@@ -332,21 +273,21 @@ class McaCanonicaliser:
             )
             part_name = f"part-offset-{page_artifact.offset:010d}.parquet"
             staged_parts.append(
-                _write_immutable_parquet(
+                write_immutable_parquet(
                     staged_frame,
                     staged_directory / part_name,
                     self._config.parquet_compression,
                 )
             )
             company_parts.append(
-                _write_immutable_parquet(
+                write_immutable_parquet(
                     company_frame,
                     company_directory / part_name,
                     self._config.parquet_compression,
                 )
             )
             address_parts.append(
-                _write_immutable_parquet(
+                write_immutable_parquet(
                     address_frame,
                     address_directory / part_name,
                     self._config.parquet_compression,
