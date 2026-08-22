@@ -57,14 +57,20 @@ jobs:
             exit 1
           fi
 
+          commit_subjects=$(git log --format='%s' "$BASE_SHA..$HEAD_SHA")
+          if [[ -z "$commit_subjects" ]]; then
+            echo "Pull request must contain at least one readable commit."
+            exit 1
+          fi
           while IFS= read -r commit_subject; do
             if [[ ! "$commit_subject" =~ $conventional_pattern ]]; then
               echo "Invalid commit message: $commit_subject"
               exit 1
             fi
-          done < <(git log --format='%s' "$BASE_SHA..$HEAD_SHA")
+          done <<<"$commit_subjects"
 
-          if git log --format='%s%n%b' "$BASE_SHA..$HEAD_SHA" | grep -Eiq "$prohibited_attribution_pattern"; then
+          commit_messages=$(git log --format='%s%n%b' "$BASE_SHA..$HEAD_SHA")
+          if grep -Eiq "$prohibited_attribution_pattern" <<<"$commit_messages"; then
             echo "Commit message contains prohibited coding-tool attribution."
             exit 1
           fi
