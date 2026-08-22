@@ -49,6 +49,18 @@ uv run python -m assay.cli.link_entities \
   --nse-report data/generated/nse_canonicalisation/<snapshot>.report.json
 ```
 
+Build the as-of shared-address and address-plus-registration-month signals. The
+outcome window starts the day after the MCA source cutoff, and entities with a
+known earlier regulatory outcome are excluded from evaluation.
+
+```bash
+uv run python -m assay.cli.build_signal_observations \
+  --mca-report data/generated/mca_canonicalisation/<snapshot>.report.json \
+  --nse-report data/generated/nse_canonicalisation/<snapshot>.report.json \
+  --linkage-report data/generated/entity_linkage/<run>.report.json \
+  --outcome-window-end 2026-08-22
+```
+
 The resulting `adverse_event` artifacts keep SEBI and other-authority actions
 separate and name the target `adverse_regulatory_outcome`. They do not create a
 generic fraud label.
