@@ -24,7 +24,9 @@ sources:
     publisher: National Stock Exchange of India Limited
     purpose: external_adverse_outcome_validation
     canonical_url: https://www.nseindia.com/static/regulations/member-sebi-debarred-entities
-    licence: unknown_source_specific_terms
+    licence: NSE_website_terms_source_specific_no_redistribution_grant
+    terms_url: https://www.nseindia.com/static/nse-terms-of-use
+    data_policy_url: https://www.nseindia.com/static/market-data/nse-data-policy
     access: public_xls_download
     target_fields:
       - adverse_regulatory_outcome
@@ -38,7 +40,9 @@ sources:
     publisher: National Stock Exchange of India Limited
     purpose: external_other_authority_outcome_validation
     canonical_url: https://nsearchives.nseindia.com/content/press/prs_ra_others.xls
-    licence: unknown_source_specific_terms
+    licence: NSE_website_terms_source_specific_no_redistribution_grant
+    terms_url: https://www.nseindia.com/static/nse-terms-of-use
+    data_policy_url: https://www.nseindia.com/static/market-data/nse-data-policy
     access: public_xls_download
     target_fields:
       - adverse_regulatory_outcome

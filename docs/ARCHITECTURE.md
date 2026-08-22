@@ -62,7 +62,7 @@ Canonical tables carry `source_id`, `source_record_id`, `source_file_sha256`, `s
 
 | Table | Grain | Decision it supports |
 | --- | --- | --- |
-| `company_snapshot` | one MCA company record per CIN and source snapshot | Eligible entity population and leakage-safe temporal cohorts |
+| `company_snapshot` | one MCA legal entity per CIN, LLPIN, or FCRN and source snapshot | Eligible entity population and leakage-safe temporal cohorts |
 | `company_address_snapshot` | one normalised address per company and source snapshot | As-of address groups without treating reuse as a label |
 | `adverse_event` | one regulatory row from NSE | Narrow, sourced outcome target |
 | `entity_match` | one MCA-to-NSE candidate match | Label coverage and false-match audit |

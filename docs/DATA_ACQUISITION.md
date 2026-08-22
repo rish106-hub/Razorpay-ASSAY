@@ -16,10 +16,10 @@
 
 | Source | Use | Status | Rule |
 | --- | --- | --- | --- |
-| MCA Company Master Data | Core legal-entity records | API key present; one-record schema verified; full extract not acquired | Record source URL, download date, extract date and checksum. |
-| NSE / SEBI | Official adverse validation | Raw official files acquired and schema-validated | Retain original source file and source URL. Do not call all listings fraud. |
+| MCA Company Master Data | Core legal-entity records | Full 3,674,314-record API snapshot acquired and checksum-addressed | Record source URL, download date, extract date and checksum. |
+| NSE / SEBI | Official adverse validation | 16,165 official rows acquired, schema-validated, and canonicalised | Retain original source file and source URL. Do not call all listings fraud. |
 | GLEIF | Entity identity and ownership enrichment | Not acquired | Check applicable reuse terms before staging. |
-| Fraud Detection Handbook | Optional controlled benchmark | Not generated; non-blocking | Label it synthetic in all results and demos. |
+| Fraud Detection Handbook | Optional controlled benchmark | Pinned Colab T4 benchmark complete; isolated from entity risk | Label it synthetic in all results and demos. |
 | IEEE-CIS | Optional transaction benchmark | Not acquired | Require Kaggle access; do not block milestone one. |
 
 ## Required manifest fields
