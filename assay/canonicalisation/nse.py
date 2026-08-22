@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from typing import Literal
 
 import pandas as pd
 import polars as pl
@@ -213,7 +214,7 @@ class NseCanonicaliser:
         for asset in nse_assets:
             raw_asset_path = self._resolve(Path(asset.local_path))
             self._verify_asset(asset, raw_asset_path)
-            excel_engine = (
+            excel_engine: Literal["openpyxl", "xlrd"] = (
                 "openpyxl"
                 if asset.format == "xlsx_container_with_xls_extension"
                 else "xlrd"
@@ -278,13 +279,21 @@ class NseCanonicaliser:
             other_authority_event_rows=combined_frame.filter(
                 pl.col("event_source_authority") == "OTHER_AUTHORITY"
             ).height,
-            cin_candidate_rows=combined_frame["cin_candidate"].is_not_null().sum(),
-            din_candidate_rows=combined_frame["din_candidate"].is_not_null().sum(),
-            pan_candidate_rows=combined_frame["pan_candidate"].is_not_null().sum(),
-            missing_entity_name_rows=(
-                combined_frame["entity_name_normalized_strict"] == ""
-            ).sum(),
-            missing_event_date_rows=combined_frame["event_date"].is_null().sum(),
+            cin_candidate_rows=int(
+                combined_frame["cin_candidate"].is_not_null().sum()
+            ),
+            din_candidate_rows=int(
+                combined_frame["din_candidate"].is_not_null().sum()
+            ),
+            pan_candidate_rows=int(
+                combined_frame["pan_candidate"].is_not_null().sum()
+            ),
+            missing_entity_name_rows=int(
+                (combined_frame["entity_name_normalized_strict"] == "").sum()
+            ),
+            missing_event_date_rows=int(
+                combined_frame["event_date"].is_null().sum()
+            ),
             provenance_complete_assets=sum(
                 asset.provenance_status == "complete" for asset in nse_assets
             ),

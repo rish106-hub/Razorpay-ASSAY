@@ -367,11 +367,25 @@ class McaCanonicaliser:
             max_invalid_legal_entity_identifier_rate=(
                 self._config.max_invalid_legal_entity_identifier_rate
             ),
+            company_snapshot_rows=quality_metrics["company_snapshot_rows"],
+            address_snapshot_rows=quality_metrics["address_snapshot_rows"],
+            duplicate_legal_entity_identifier_rows=quality_metrics[
+                "duplicate_legal_entity_identifier_rows"
+            ],
+            invalid_legal_entity_identifier_rows=quality_metrics[
+                "invalid_legal_entity_identifier_rows"
+            ],
+            cin_rows=quality_metrics["cin_rows"],
+            llpin_rows=quality_metrics["llpin_rows"],
+            fcrn_rows=quality_metrics["fcrn_rows"],
+            missing_registration_date_rows=quality_metrics[
+                "missing_registration_date_rows"
+            ],
+            blank_address_rows=quality_metrics["blank_address_rows"],
             quality_status=quality_status,
             staged_parts=tuple(staged_parts),
             company_parts=tuple(company_parts),
             address_parts=tuple(address_parts),
-            **quality_metrics,
         )
         self._write_report(report, report_path)
         return report

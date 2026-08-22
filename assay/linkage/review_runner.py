@@ -7,6 +7,7 @@ import json
 import os
 import tempfile
 from pathlib import Path
+from typing import TypeVar
 
 import polars as pl
 from pydantic import BaseModel, ConfigDict, Field
@@ -24,6 +25,8 @@ from assay.linkage.review import (
     LinkageReviewSamplingConfig,
     build_linkage_review_sample,
 )
+
+ReportModel = TypeVar("ReportModel", bound=BaseModel)
 
 
 class LinkageReviewRunError(RuntimeError):
@@ -209,7 +212,11 @@ class LinkageReviewRunner:
             return configured_path
         return self._config.project_root / configured_path
 
-    def _load_report(self, configured_path: Path, report_model: type[BaseModel]):
+    def _load_report(
+        self,
+        configured_path: Path,
+        report_model: type[ReportModel],
+    ) -> ReportModel:
         report_path = self._resolve(configured_path)
         if not report_path.is_file():
             raise LinkageReviewRunError(f"Run report is missing: {report_path}.")
@@ -279,4 +286,3 @@ class LinkageReviewRunner:
             )
             report_file.flush()
             os.fsync(report_file.fileno())
-

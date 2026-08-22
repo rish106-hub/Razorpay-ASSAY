@@ -8,6 +8,7 @@ import os
 import tempfile
 from datetime import date
 from pathlib import Path
+from typing import TypeVar
 
 import polars as pl
 from pydantic import BaseModel, ConfigDict, Field
@@ -26,6 +27,8 @@ from assay.signals.observations import (
     build_signal_observations,
     default_signal_observation_config,
 )
+
+ReportModel = TypeVar("ReportModel", bound=BaseModel)
 
 
 class SignalObservationRunError(RuntimeError):
@@ -246,7 +249,11 @@ class SignalObservationRunner:
             return configured_path
         return self._config.project_root / configured_path
 
-    def _load_report(self, configured_path: Path, report_model: type[BaseModel]):
+    def _load_report(
+        self,
+        configured_path: Path,
+        report_model: type[ReportModel],
+    ) -> ReportModel:
         report_path = self._resolve(configured_path)
         if not report_path.is_file():
             raise SignalObservationRunError(f"Run report is missing: {report_path}.")

@@ -10,7 +10,7 @@ import re
 import shutil
 import tempfile
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -121,7 +121,7 @@ def _default_http_transport(url: str, timeout_seconds: float) -> bytes:
         },
     )
     with urlopen(merchant_risk_request, timeout=timeout_seconds) as response:
-        return response.read()
+        return bytes(response.read())
 
 
 def _normalise_source_field(source_field: str) -> str:
@@ -203,7 +203,7 @@ def _validate_mca_page(raw_page_bytes: bytes, requested_limit: int) -> McaPageEn
         raise McaAcquisitionError("MCA response failed schema validation.") from error
 
 
-def _retry_after_seconds(headers: Mapping[str, str] | None) -> float | None:
+def _retry_after_seconds(headers: Any | None) -> float | None:
     if headers is None:
         return None
     retry_after = headers.get("Retry-After")
@@ -294,7 +294,7 @@ class McaApiClient:
             if retry_after_seconds is None
             else max(exponential_delay, retry_after_seconds)
         )
-        return min(requested_delay, self._config.max_backoff_seconds)
+        return float(min(requested_delay, self._config.max_backoff_seconds))
 
 
 class McaCompanyMasterDownloader:

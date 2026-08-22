@@ -6,6 +6,7 @@ import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import cast
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -101,7 +102,7 @@ def create_app(report_path: Path | None = None) -> FastAPI:
     )
 
     def current_report(request: Request) -> EvidenceReadinessReport:
-        return request.app.state.evidence_report
+        return cast("EvidenceReadinessReport", request.app.state.evidence_report)
 
     @application.get("/healthz", response_model=HealthResponse)
     def health(request: Request) -> HealthResponse:
@@ -116,7 +117,10 @@ def create_app(report_path: Path | None = None) -> FastAPI:
         "/v1/evidence/readiness",
         response_model=EvidenceReadinessReport,
     )
-    def evidence_readiness(request: Request, response: Response):
+    def evidence_readiness(
+        request: Request,
+        response: Response,
+    ) -> EvidenceReadinessReport:
         evidence_report = current_report(request)
         response.headers["ETag"] = f'"{evidence_report.report_id}"'
         response.headers["Cache-Control"] = "public, max-age=300"

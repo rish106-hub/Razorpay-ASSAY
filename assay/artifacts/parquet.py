@@ -6,6 +6,7 @@ import hashlib
 import os
 import tempfile
 from pathlib import Path
+from typing import Literal, cast
 
 import polars as pl
 from pydantic import BaseModel, ConfigDict, Field
@@ -24,6 +25,16 @@ class ParquetArtifact(BaseModel):
 
 class ImmutableArtifactError(RuntimeError):
     """An immutable artifact could not be published safely."""
+
+
+ParquetCompression = Literal[
+    "lz4",
+    "uncompressed",
+    "snappy",
+    "gzip",
+    "brotli",
+    "zstd",
+]
 
 
 def sha256_file(artifact_path: Path) -> str:
@@ -82,7 +93,7 @@ def write_immutable_parquet(
             temporary_path = Path(temporary_artifact.name)
         frame.write_parquet(
             temporary_path,
-            compression=compression,
+            compression=cast("ParquetCompression", compression),
             statistics=True,
         )
         with temporary_path.open("rb") as temporary_file:

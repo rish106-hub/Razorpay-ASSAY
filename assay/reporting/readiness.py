@@ -6,7 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -17,6 +17,7 @@ from assay.signals.runner import SignalObservationRunReport
 
 EVIDENCE_READINESS_SCHEMA_VERSION = "1.0.0"
 ModelTrainingDecision = Literal["TRAIN", "DO_NOT_TRAIN"]
+ReportModel = TypeVar("ReportModel", bound=BaseModel)
 
 
 class EvidenceReadinessError(RuntimeError):
@@ -281,7 +282,11 @@ class EvidenceReadinessReporter:
         ).encode("utf-8")
         return hashlib.sha256(payload).hexdigest()
 
-    def _load_report(self, configured_path: Path, model: type[BaseModel]):
+    def _load_report(
+        self,
+        configured_path: Path,
+        model: type[ReportModel],
+    ) -> ReportModel:
         report_path = self._resolve(configured_path)
         if not report_path.is_file():
             raise EvidenceReadinessError(f"Evidence report is missing: {report_path}.")
