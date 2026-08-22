@@ -49,6 +49,15 @@ uv run python -m assay.cli.link_entities \
   --nse-report data/generated/nse_canonicalisation/<snapshot>.report.json
 ```
 
+Build a stratified linkage review workbook. Reviewers must use `MATCH`,
+`NO_MATCH`, or `UNSURE`; exact-name candidates never become labels by default.
+
+```bash
+uv run python -m assay.cli.build_linkage_review \
+  --linkage-report data/generated/entity_linkage/<run>.report.json \
+  --nse-report data/generated/nse_canonicalisation/<snapshot>.report.json
+```
+
 Build the as-of shared-address and address-plus-registration-month signals. The
 outcome window starts the day after the MCA source cutoff, and entities with a
 known earlier regulatory outcome are excluded from evaluation.
