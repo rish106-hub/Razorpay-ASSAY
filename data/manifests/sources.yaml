@@ -60,6 +60,9 @@ sources:
     access: public_download
     constraints:
       - noncommercial_only_without_paid_licence
+      - use_cin_before_name_matching
+      - require_match_quality_audit
+      - cannot_substitute_for_official_nse_provenance
 
   - id: ieee_cis_fraud_detection
     priority: deferred
