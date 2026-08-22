@@ -8,6 +8,7 @@ import os
 import tempfile
 from pathlib import Path
 
+import duckdb
 import polars as pl
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -155,6 +156,102 @@ def _empty_candidate_frame() -> pl.DataFrame:
             "candidate_set_truncated": pl.Boolean,
         }
     )
+
+
+def _prefilter_linkage_companies(
+    company_parquet_paths: list[str],
+    adverse_frame: pl.DataFrame,
+) -> pl.DataFrame:
+    """Use an out-of-core semi-join before building the in-memory match registry."""
+
+    strict_company_name_sql = """
+        trim(
+            regexp_replace(
+                regexp_replace(
+                    upper(coalesce(company_name, '')),
+                    '[^A-Z0-9]+',
+                    ' ',
+                    'g'
+                ),
+                '\\s+',
+                ' ',
+                'g'
+            )
+        )
+    """
+    legal_company_name_sql = f"""
+        trim(
+            regexp_replace(
+                regexp_replace(
+                    {strict_company_name_sql},
+                    '\\b(PRIVATE|PVT|LIMITED|LTD|LLP|COMPANY|CO)\\b',
+                    ' ',
+                    'g'
+                ),
+                '\\s+',
+                ' ',
+                'g'
+            )
+        )
+    """
+    query = f"""
+        WITH merchant_registry AS (
+            SELECT
+                company_snapshot_id,
+                upper(coalesce(cin, '')) AS cin,
+                company_name,
+                {strict_company_name_sql} AS company_name_strict,
+                {legal_company_name_sql} AS company_name_legal
+            FROM read_parquet(?)
+        ),
+        matched_companies AS (
+            SELECT merchant_registry.company_snapshot_id
+            FROM merchant_registry
+            SEMI JOIN adverse_registry
+                ON merchant_registry.cin = adverse_registry.cin_candidate
+            WHERE merchant_registry.cin <> ''
+
+            UNION
+
+            SELECT merchant_registry.company_snapshot_id
+            FROM merchant_registry
+            SEMI JOIN adverse_registry
+                ON merchant_registry.company_name_strict =
+                    adverse_registry.entity_name_normalized_strict
+            WHERE merchant_registry.company_name_strict <> ''
+
+            UNION
+
+            SELECT merchant_registry.company_snapshot_id
+            FROM merchant_registry
+            SEMI JOIN adverse_registry
+                ON merchant_registry.company_name_legal =
+                    adverse_registry.entity_name_normalized_legal
+            WHERE merchant_registry.company_name_legal <> ''
+        )
+        SELECT
+            merchant_registry.company_snapshot_id,
+            nullif(merchant_registry.cin, '') AS cin,
+            merchant_registry.company_name
+        FROM merchant_registry
+        INNER JOIN matched_companies USING (company_snapshot_id)
+        ORDER BY merchant_registry.company_snapshot_id
+    """
+    with (
+        tempfile.TemporaryDirectory(prefix="assay-linkage-duckdb-") as spill_path,
+        duckdb.connect(
+            config={
+                "memory_limit": "4GB",
+                "temp_directory": spill_path,
+                "threads": "4",
+            }
+        ) as merchant_risk_database,
+    ):
+        merchant_risk_database.register("adverse_registry", adverse_frame)
+        return merchant_risk_database.execute(
+            query,
+            [company_parquet_paths],
+        ).pl()
 
 
 def build_entity_linkage_frames(
@@ -356,19 +453,10 @@ class EntityLinker:
         if run_directory.exists() or report_path.exists():
             raise EntityLinkageError("Entity-linkage run output already exists.")
 
-        company_frame = pl.concat(
-            [
-                pl.scan_parquet(
-                    verify_parquet_artifact(part, self._config.project_root)
-                ).select(
-                    "company_snapshot_id",
-                    "cin",
-                    "company_name",
-                )
-                for part in mca_report.company_parts
-            ],
-            how="vertical",
-        ).collect(engine="streaming")
+        company_parquet_paths = [
+            str(verify_parquet_artifact(part, self._config.project_root))
+            for part in mca_report.company_parts
+        ]
         adverse_frame = pl.concat(
             [
                 pl.scan_parquet(
@@ -383,6 +471,10 @@ class EntityLinker:
             ],
             how="vertical",
         ).collect(engine="streaming")
+        company_frame = _prefilter_linkage_companies(
+            company_parquet_paths,
+            adverse_frame,
+        )
         candidate_frame, decision_frame = build_entity_linkage_frames(
             company_frame,
             adverse_frame,
