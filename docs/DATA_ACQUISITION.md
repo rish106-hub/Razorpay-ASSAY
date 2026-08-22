@@ -26,6 +26,10 @@
 
 Each acquired asset needs: source URL, publisher, access date, licence or terms,
 extract date, SHA-256, file size, intended use, and any restrictions.
+Assets repeat or override required source fields rather than relying on implicit
+inheritance. Unknown licence or extract dates must be explicit and force
+`provenance_status: incomplete`. Run
+`uv run python -m scripts.validate_manifests` before downstream evidence work.
 
 ## Initial evaluations
 

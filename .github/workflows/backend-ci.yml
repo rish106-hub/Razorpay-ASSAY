@@ -31,3 +31,6 @@ jobs:
 
       - name: Run backend and data pipeline tests
         run: uv run python -m pytest
+
+      - name: Validate source provenance manifests
+        run: uv run python -m scripts.validate_manifests
