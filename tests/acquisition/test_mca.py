@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
 from collections.abc import Iterator
 from datetime import UTC, datetime
@@ -144,6 +145,30 @@ def test_api_client_never_exposes_api_key_in_failure(tmp_path: Path) -> None:
         ).fetch_page("never-print-this-key", offset=0)
 
     assert "never-print-this-key" not in str(captured_error.value)
+
+
+def test_api_client_retries_interrupted_response_body(tmp_path: Path) -> None:
+    interrupted_response = http.client.IncompleteRead(
+        partial=b"partial-merchant-page",
+        expected=100,
+    )
+    transport = QueuedTransport(iter([interrupted_response, b"complete-page"]))
+    config = McaAcquisitionConfig(
+        output_directory=tmp_path,
+        page_size=2,
+        max_attempts=2,
+        initial_backoff_seconds=0,
+        minimum_free_disk_gb=0.001,
+    )
+
+    raw_page = McaApiClient(
+        config,
+        transport=transport,
+        sleep=lambda _: None,
+    ).fetch_page("private-test-key", offset=0)
+
+    assert raw_page == b"complete-page"
+    assert len(transport.request_urls) == 2
 
 
 def test_page_validation_rejects_missing_risk_evidence_fields() -> None:

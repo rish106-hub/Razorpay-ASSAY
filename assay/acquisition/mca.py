@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
 import os
 import re
@@ -250,7 +251,13 @@ class McaApiClient:
                         f"MCA request rejected with HTTP {error.code}."
                     ) from None
                 retry_after = _retry_after_seconds(error.headers)
-            except (TimeoutError, URLError):
+            except (
+                TimeoutError,
+                URLError,
+                ConnectionResetError,
+                http.client.IncompleteRead,
+                http.client.RemoteDisconnected,
+            ):
                 last_failure = "network timeout or connection failure"
 
             if attempt_number == self._config.max_attempts:
