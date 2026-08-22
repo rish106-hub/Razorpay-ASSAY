@@ -84,13 +84,15 @@ def build_signal_observations(
             "company_snapshot_id",
             "source_snapshot_id",
             "snapshot_as_of",
+            "legal_entity_identifier",
+            "legal_entity_identifier_type",
+            "legal_entity_identifier_is_valid_format",
             "cin",
             "company_name",
             "registration_date",
             "state_code",
             "nic_code",
             "paid_up_capital_inr",
-            "cin_is_valid_format",
         },
         "company snapshot",
     )
@@ -99,7 +101,7 @@ def build_signal_observations(
         {
             "company_address_snapshot_id",
             "source_snapshot_id",
-            "source_record_id",
+            "legal_entity_identifier",
             "address_normalized",
             "address_group_key",
             "snapshot_as_of",
@@ -155,7 +157,7 @@ def build_signal_observations(
         )
 
     address_signals = address_frame.select(
-        pl.col("source_record_id").alias("cin"),
+        "legal_entity_identifier",
         "address_normalized",
         "address_group_key",
     ).with_columns(
@@ -167,7 +169,7 @@ def build_signal_observations(
     )
     merchant_population = company_frame.join(
         address_signals,
-        on="cin",
+        on="legal_entity_identifier",
         how="left",
         validate="1:1",
     ).with_columns(
@@ -260,7 +262,7 @@ def build_signal_observations(
     ).with_columns(
         (pl.col("adverse_event_count") > 0).alias("observed_adverse_outcome"),
         (
-            pl.col("cin_is_valid_format")
+            pl.col("legal_entity_identifier_is_valid_format")
             & pl.col("registration_date").is_not_null()
             & (pl.col("registration_date") <= config.feature_cutoff)
             & ~pl.col("has_prior_adverse_outcome")
@@ -283,6 +285,8 @@ def build_signal_observations(
         "run_id",
         "company_snapshot_id",
         "source_snapshot_id",
+        "legal_entity_identifier",
+        "legal_entity_identifier_type",
         "cin",
         "company_name",
         "registration_date",

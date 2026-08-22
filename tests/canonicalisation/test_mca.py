@@ -2,13 +2,17 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import polars as pl
 
 from assay.acquisition.mca import McaAcquisitionCheckpoint, McaPageArtifact
-from assay.canonicalisation.mca import McaCanonicalisationConfig, McaCanonicaliser
+from assay.canonicalisation.mca import (
+    McaCanonicalisationConfig,
+    McaCanonicaliser,
+    _canonical_company_frame,
+)
 
 
 def _write_complete_acquisition(raw_directory: Path) -> None:
@@ -87,8 +91,11 @@ def test_canonicaliser_writes_versioned_company_and_address_snapshots(
     assert report.acquisition_complete is True
     assert report.company_snapshot_rows == 1
     assert report.address_snapshot_rows == 1
-    assert report.duplicate_cin_rows == 0
-    assert report.invalid_cin_rows == 0
+    assert report.duplicate_legal_entity_identifier_rows == 0
+    assert report.invalid_legal_entity_identifier_rows == 0
+    assert report.cin_rows == 1
+    assert report.llpin_rows == 0
+    assert report.fcrn_rows == 0
     assert report.quality_status == "passed"
 
     company_frame = pl.read_parquet(report.company_parts[0].path)
@@ -98,3 +105,52 @@ def test_canonicaliser_writes_versioned_company_and_address_snapshots(
     assert company_frame["snapshot_as_of"].item().isoformat() == "2023-11-03"
     assert address_frame["address_normalized"].item() == "12 RISK ROAD NEW DELHI"
     assert address_frame["address_group_key"].item() == "12 RISK ROAD NEW DELHI"
+
+
+def test_company_frame_classifies_mca_legal_entity_identifiers() -> None:
+    staged_frame = pl.DataFrame(
+        {
+            "CIN": ["U12345DL2020PTC123456", "AAA-1111", "F01234", "TEST1"],
+            "source_file_sha256": ["a" * 64] * 4,
+            "observed_at": [datetime(2026, 8, 22, 12, 0, tzinfo=UTC)] * 4,
+            "CompanyName": ["Entity"] * 4,
+            "CompanyStatus": ["Active"] * 4,
+            "CompanyRegistrationdate_date": ["2020-01-02"] * 4,
+            "CompanyStateCode": ["Delhi"] * 4,
+            "CompanyROCcode": ["RoC-Delhi"] * 4,
+            "CompanyCategory": ["Company limited by Shares"] * 4,
+            "CompanySubCategory": ["Non-govt company"] * 4,
+            "CompanyClass": ["Private"] * 4,
+            "Listingstatus": ["Unlisted"] * 4,
+            "CompanyIndian/Foreign Company": ["Indian"] * 4,
+            "AuthorizedCapital": ["100000.00"] * 4,
+            "PaidupCapital": ["50000.00"] * 4,
+            "nic_code": ["64990"] * 4,
+            "CompanyIndustrialClassification": ["Financial intermediation"] * 4,
+        }
+    )
+
+    company_frame = _canonical_company_frame(
+        staged_frame,
+        source_snapshot_id="b" * 64,
+        snapshot_as_of=date(2023, 11, 3),
+    )
+
+    assert company_frame["legal_entity_identifier_type"].to_list() == [
+        "CIN",
+        "LLPIN",
+        "FCRN",
+        "UNKNOWN",
+    ]
+    assert company_frame["legal_entity_identifier_is_valid_format"].to_list() == [
+        True,
+        True,
+        True,
+        False,
+    ]
+    assert company_frame["cin"].to_list() == [
+        "U12345DL2020PTC123456",
+        None,
+        None,
+        None,
+    ]

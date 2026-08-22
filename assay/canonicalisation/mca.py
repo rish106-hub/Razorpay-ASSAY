@@ -18,9 +18,13 @@ from assay.artifacts.parquet import (
     sha256_file,
     write_immutable_parquet,
 )
-from assay.contracts.identifiers import INDIAN_CIN_PATTERN
+from assay.contracts.identifiers import (
+    FOREIGN_COMPANY_REGISTRATION_PATTERN,
+    INDIAN_CIN_PATTERN,
+    INDIAN_LLPIN_PATTERN,
+)
 
-MCA_CANONICAL_SCHEMA_VERSION = "1.1.0"
+MCA_CANONICAL_SCHEMA_VERSION = "1.2.0"
 MCA_SOURCE_DATA_THROUGH = date(2023, 11, 3)
 MCA_CANONICAL_SOURCE_FIELDS = frozenset(
     {
@@ -60,6 +64,11 @@ class McaCanonicalisationConfig(BaseModel):
     generated_report_root: Path = Path("data/generated/mca_canonicalisation")
     snapshot_as_of: date = MCA_SOURCE_DATA_THROUGH
     allow_incomplete_acquisition: bool = False
+    max_invalid_legal_entity_identifier_rate: float = Field(
+        default=0.0001,
+        ge=0,
+        le=1,
+    )
     parquet_compression: str = "zstd"
 
 
@@ -77,8 +86,13 @@ class McaCanonicalisationReport(BaseModel):
     raw_record_count: int = Field(ge=0)
     company_snapshot_rows: int = Field(ge=0)
     address_snapshot_rows: int = Field(ge=0)
-    duplicate_cin_rows: int = Field(ge=0)
-    invalid_cin_rows: int = Field(ge=0)
+    duplicate_legal_entity_identifier_rows: int = Field(ge=0)
+    invalid_legal_entity_identifier_rows: int = Field(ge=0)
+    invalid_legal_entity_identifier_rate: float = Field(ge=0, le=1)
+    max_invalid_legal_entity_identifier_rate: float = Field(ge=0, le=1)
+    cin_rows: int = Field(ge=0)
+    llpin_rows: int = Field(ge=0)
+    fcrn_rows: int = Field(ge=0)
     missing_registration_date_rows: int = Field(ge=0)
     blank_address_rows: int = Field(ge=0)
     quality_status: str
@@ -92,18 +106,48 @@ def _canonical_company_frame(
     source_snapshot_id: str,
     snapshot_as_of: date,
 ) -> pl.DataFrame:
+    legal_entity_identifier = pl.col("CIN").str.strip_chars().str.to_uppercase()
+    legal_entity_identifier_type = (
+        pl.when(legal_entity_identifier.str.contains(INDIAN_CIN_PATTERN))
+        .then(pl.lit("CIN"))
+        .when(legal_entity_identifier.str.contains(INDIAN_LLPIN_PATTERN))
+        .then(pl.lit("LLPIN"))
+        .when(
+            legal_entity_identifier.str.contains(
+                FOREIGN_COMPANY_REGISTRATION_PATTERN
+            )
+        )
+        .then(pl.lit("FCRN"))
+        .otherwise(pl.lit("UNKNOWN"))
+    )
     merchant_entity_frame = staged_frame.select(
         pl.concat_str(
-            [pl.lit(source_snapshot_id), pl.col("CIN")], separator=":"
+            [pl.lit(source_snapshot_id), legal_entity_identifier], separator=":"
         ).alias("company_snapshot_id"),
         pl.lit("mca_company_master").alias("source_id"),
-        pl.col("CIN").str.strip_chars().str.to_uppercase().alias("source_record_id"),
+        legal_entity_identifier.alias("source_record_id"),
         pl.col("source_file_sha256"),
         pl.lit(source_snapshot_id).alias("source_snapshot_id"),
         pl.lit(snapshot_as_of).cast(pl.Date).alias("snapshot_as_of"),
         pl.col("observed_at"),
         pl.lit(MCA_CANONICAL_SCHEMA_VERSION).alias("schema_version"),
-        pl.col("CIN").str.strip_chars().str.to_uppercase().alias("cin"),
+        legal_entity_identifier.alias("legal_entity_identifier"),
+        legal_entity_identifier_type.alias("legal_entity_identifier_type"),
+        (legal_entity_identifier_type != "UNKNOWN").alias(
+            "legal_entity_identifier_is_valid_format"
+        ),
+        pl.when(legal_entity_identifier_type == "CIN")
+        .then(legal_entity_identifier)
+        .otherwise(None)
+        .alias("cin"),
+        pl.when(legal_entity_identifier_type == "LLPIN")
+        .then(legal_entity_identifier)
+        .otherwise(None)
+        .alias("llpin"),
+        pl.when(legal_entity_identifier_type == "FCRN")
+        .then(legal_entity_identifier)
+        .otherwise(None)
+        .alias("fcrn"),
         pl.col("CompanyName").str.strip_chars().alias("company_name"),
         pl.col("CompanyStatus").str.strip_chars().alias("company_status"),
         pl.col("CompanyRegistrationdate_date")
@@ -130,11 +174,6 @@ def _canonical_company_frame(
         pl.col("CompanyIndustrialClassification")
         .str.strip_chars()
         .alias("industrial_classification"),
-        pl.col("CIN")
-        .str.strip_chars()
-        .str.to_uppercase()
-        .str.contains(INDIAN_CIN_PATTERN)
-        .alias("cin_is_valid_format"),
         pl.lit(None, dtype=pl.Date).alias("valid_from"),
         pl.lit(None, dtype=pl.Date).alias("valid_to"),
     )
@@ -146,6 +185,7 @@ def _canonical_address_frame(
     source_snapshot_id: str,
     snapshot_as_of: date,
 ) -> pl.DataFrame:
+    legal_entity_identifier = pl.col("CIN").str.strip_chars().str.to_uppercase()
     address_normalized = (
         pl.col("Registered_Office_Address")
         .fill_null("")
@@ -156,16 +196,16 @@ def _canonical_address_frame(
     )
     return staged_frame.select(
         pl.concat_str(
-            [pl.lit(source_snapshot_id), pl.col("CIN")], separator=":"
+            [pl.lit(source_snapshot_id), legal_entity_identifier], separator=":"
         ).alias("company_address_snapshot_id"),
         pl.lit("mca_company_master").alias("source_id"),
-        pl.col("CIN").str.strip_chars().str.to_uppercase().alias("source_record_id"),
+        legal_entity_identifier.alias("source_record_id"),
         pl.col("source_file_sha256"),
         pl.lit(source_snapshot_id).alias("source_snapshot_id"),
         pl.lit(snapshot_as_of).cast(pl.Date).alias("snapshot_as_of"),
         pl.col("observed_at"),
         pl.lit(MCA_CANONICAL_SCHEMA_VERSION).alias("schema_version"),
-        pl.col("CIN").str.strip_chars().str.to_uppercase().alias("cin"),
+        legal_entity_identifier.alias("legal_entity_identifier"),
         pl.col("Registered_Office_Address").alias("registered_office_address_raw"),
         address_normalized.alias("address_normalized"),
         address_normalized.alias("address_group_key"),
@@ -299,18 +339,34 @@ class McaCanonicaliser:
             expected_offset += page_artifact.record_count
 
         quality_metrics = self._audit_snapshot(company_directory, address_directory)
-        quality_status = (
-            "passed"
-            if quality_metrics["duplicate_cin_rows"] == 0
-            and quality_metrics["invalid_cin_rows"] == 0
-            else "failed"
+        company_snapshot_rows = quality_metrics["company_snapshot_rows"]
+        invalid_identifier_rows = quality_metrics[
+            "invalid_legal_entity_identifier_rows"
+        ]
+        invalid_identifier_rate = (
+            invalid_identifier_rows / company_snapshot_rows
+            if company_snapshot_rows
+            else 0.0
         )
+        if quality_metrics["duplicate_legal_entity_identifier_rows"] > 0 or (
+            invalid_identifier_rate
+            > self._config.max_invalid_legal_entity_identifier_rate
+        ):
+            quality_status = "failed"
+        elif invalid_identifier_rows > 0:
+            quality_status = "passed_with_quarantine"
+        else:
+            quality_status = "passed"
         report = McaCanonicalisationReport(
             source_snapshot_id=source_snapshot_id,
             snapshot_as_of=self._config.snapshot_as_of,
             acquisition_complete=acquisition_complete,
             raw_page_count=len(checkpoint.pages),
             raw_record_count=checkpoint.next_offset,
+            invalid_legal_entity_identifier_rate=invalid_identifier_rate,
+            max_invalid_legal_entity_identifier_rate=(
+                self._config.max_invalid_legal_entity_identifier_rate
+            ),
             quality_status=quality_status,
             staged_parts=tuple(staged_parts),
             company_parts=tuple(company_parts),
@@ -332,8 +388,20 @@ class McaCanonicaliser:
                 """
                 SELECT
                     count(*) AS company_snapshot_rows,
-                    count(*) - count(DISTINCT cin) AS duplicate_cin_rows,
-                    count(*) FILTER (WHERE NOT cin_is_valid_format) AS invalid_cin_rows,
+                    count(*) - count(DISTINCT legal_entity_identifier)
+                        AS duplicate_legal_entity_identifier_rows,
+                    count(*) FILTER (
+                        WHERE NOT legal_entity_identifier_is_valid_format
+                    ) AS invalid_legal_entity_identifier_rows,
+                    count(*) FILTER (
+                        WHERE legal_entity_identifier_type = 'CIN'
+                    ) AS cin_rows,
+                    count(*) FILTER (
+                        WHERE legal_entity_identifier_type = 'LLPIN'
+                    ) AS llpin_rows,
+                    count(*) FILTER (
+                        WHERE legal_entity_identifier_type = 'FCRN'
+                    ) AS fcrn_rows,
                     count(*) FILTER (WHERE registration_date IS NULL)
                         AS missing_registration_date_rows
                 FROM read_parquet(?)
@@ -353,9 +421,12 @@ class McaCanonicaliser:
             raise McaCanonicalisationError("Canonical quality audit returned no rows.")
         return {
             "company_snapshot_rows": int(company_metrics[0]),
-            "duplicate_cin_rows": int(company_metrics[1]),
-            "invalid_cin_rows": int(company_metrics[2]),
-            "missing_registration_date_rows": int(company_metrics[3]),
+            "duplicate_legal_entity_identifier_rows": int(company_metrics[1]),
+            "invalid_legal_entity_identifier_rows": int(company_metrics[2]),
+            "cin_rows": int(company_metrics[3]),
+            "llpin_rows": int(company_metrics[4]),
+            "fcrn_rows": int(company_metrics[5]),
+            "missing_registration_date_rows": int(company_metrics[6]),
             "address_snapshot_rows": int(address_metrics[0]),
             "blank_address_rows": int(address_metrics[1]),
         }

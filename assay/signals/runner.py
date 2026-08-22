@@ -91,7 +91,11 @@ class SignalObservationRunner:
             self._config.linkage_report_path,
             EntityLinkageReport,
         )
-        if not mca_report.acquisition_complete or mca_report.quality_status != "passed":
+        accepted_mca_quality_statuses = {"passed", "passed_with_quarantine"}
+        if (
+            not mca_report.acquisition_complete
+            or mca_report.quality_status not in accepted_mca_quality_statuses
+        ):
             raise SignalObservationRunError(
                 "Signal construction requires a complete, quality-passed MCA snapshot."
             )
@@ -152,13 +156,15 @@ class SignalObservationRunner:
                 "company_snapshot_id",
                 "source_snapshot_id",
                 "snapshot_as_of",
+                "legal_entity_identifier",
+                "legal_entity_identifier_type",
+                "legal_entity_identifier_is_valid_format",
                 "cin",
                 "company_name",
                 "registration_date",
                 "state_code",
                 "nic_code",
                 "paid_up_capital_inr",
-                "cin_is_valid_format",
             ),
         )
         address_frame = self._read_parts(
@@ -166,7 +172,7 @@ class SignalObservationRunner:
             (
                 "company_address_snapshot_id",
                 "source_snapshot_id",
-                "source_record_id",
+                "legal_entity_identifier",
                 "address_normalized",
                 "address_group_key",
                 "snapshot_as_of",

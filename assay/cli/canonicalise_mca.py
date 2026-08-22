@@ -25,8 +25,15 @@ def main() -> int:
                 "source_snapshot_id": report.source_snapshot_id,
                 "company_snapshot_rows": report.company_snapshot_rows,
                 "address_snapshot_rows": report.address_snapshot_rows,
-                "duplicate_cin_rows": report.duplicate_cin_rows,
-                "invalid_cin_rows": report.invalid_cin_rows,
+                "duplicate_legal_entity_identifier_rows": (
+                    report.duplicate_legal_entity_identifier_rows
+                ),
+                "invalid_legal_entity_identifier_rows": (
+                    report.invalid_legal_entity_identifier_rows
+                ),
+                "cin_rows": report.cin_rows,
+                "llpin_rows": report.llpin_rows,
+                "fcrn_rows": report.fcrn_rows,
                 "quality_status": report.quality_status,
             },
             indent=2,

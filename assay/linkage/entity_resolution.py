@@ -327,7 +327,11 @@ class EntityLinker:
         nse_report = NseCanonicalisationReport.model_validate_json(
             nse_report_path.read_text(encoding="utf-8")
         )
-        if not mca_report.acquisition_complete or mca_report.quality_status != "passed":
+        accepted_mca_quality_statuses = {"passed", "passed_with_quarantine"}
+        if (
+            not mca_report.acquisition_complete
+            or mca_report.quality_status not in accepted_mca_quality_statuses
+        ):
             raise EntityLinkageError(
                 "MCA linkage requires a complete, quality-passed canonical snapshot."
             )

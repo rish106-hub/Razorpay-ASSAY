@@ -17,6 +17,13 @@ def test_signal_observations_exclude_prior_outcomes_and_preserve_as_of_cutoff() 
             "company_snapshot_id": ["company-1", "company-2", "company-3"],
             "source_snapshot_id": [snapshot_id] * 3,
             "snapshot_as_of": [date(2023, 11, 3)] * 3,
+            "legal_entity_identifier": [
+                "U12345DL2020PTC123456",
+                "U54321DL2020PTC654321",
+                "U99999MH2021PTC999999",
+            ],
+            "legal_entity_identifier_type": ["CIN"] * 3,
+            "legal_entity_identifier_is_valid_format": [True] * 3,
             "cin": [
                 "U12345DL2020PTC123456",
                 "U54321DL2020PTC654321",
@@ -31,14 +38,13 @@ def test_signal_observations_exclude_prior_outcomes_and_preserve_as_of_cutoff() 
             "state_code": ["DL", "DL", "MH"],
             "nic_code": ["64990", "64990", "62010"],
             "paid_up_capital_inr": [100_000, 100_000, 50_000],
-            "cin_is_valid_format": [True, True, True],
         }
     )
     address_frame = pl.DataFrame(
         {
             "company_address_snapshot_id": ["address-1", "address-2", "address-3"],
             "source_snapshot_id": [snapshot_id] * 3,
-            "source_record_id": company_frame["cin"],
+            "legal_entity_identifier": company_frame["legal_entity_identifier"],
             "address_normalized": ["12 RISK ROAD", "12 RISK ROAD", "9 SAFE ROAD"],
             "address_group_key": ["12 RISK ROAD", "12 RISK ROAD", "9 SAFE ROAD"],
             "snapshot_as_of": [date(2023, 11, 3)] * 3,
