@@ -33,7 +33,7 @@ acquired data.
 | Core company records | MCA Company Master Data | Required |
 | Adverse validation | Official NSE / SEBI debarment and adverse-action data | Required |
 | Identity and ownership enrichment | GLEIF | Conditional |
-| Controlled benchmark | Fraud Detection Handbook simulator | Required |
+| Controlled benchmark | Fraud Detection Handbook simulator | Optional; does not block milestone one |
 | Transaction fraud benchmark | IEEE-CIS | Optional, requires Kaggle |
 | Credit-card fraud data | ULB dataset | Excluded |
 

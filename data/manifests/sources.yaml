@@ -32,7 +32,7 @@ sources:
       - use_cin_before_name_matching
 
   - id: fraud_detection_handbook
-    priority: P1
+    priority: P2
     purpose: controlled_verifier_benchmark
     canonical_url: https://fraud-detection-handbook.github.io/fraud-detection-handbook/Chapter_3_GettingStarted/SimulatedDataset.html
     licence: GPLv3_for_code_and_CC_BY_SA_4_0_for_documentation
@@ -40,6 +40,7 @@ sources:
     constraints:
       - fixed_seed_required
       - never_mix_with_mca_labels
+      - does_not_block_milestone_one
 
   - id: gleif_golden_copy
     priority: P1

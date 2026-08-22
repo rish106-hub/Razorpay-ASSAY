@@ -351,11 +351,14 @@ No result should be presented using a random row split if the deployment claim i
 
 ## 11. Recommended dataset stack
 
-### MVP stack
+### Core milestone stack
 
 1. **MCA Company Master Data** for entities, cohorts, addresses, capital, industry, and company status.
 2. **Official NSE/SEBI adverse lists** for a narrow external validation target.
-3. **Fraud Detection Handbook simulator**, only as an isolated controlled benchmark for the verifier workflow.
+
+### Optional benchmark stack
+
+3. **Fraud Detection Handbook simulator**, only as an isolated controlled benchmark for the verifier workflow. It does not block milestone one.
 
 ### Conditional extension
 
@@ -373,7 +376,7 @@ No result should be presented using a random row split if the deployment claim i
 
 1. Download all required MCA state/ROC resources and record source URL, retrieval time, checksum, byte size, and declared data date.
 2. Download the official NSE/SEBI spreadsheets and preserve the raw files unchanged.
-3. Generate a fixed-version Fraud Detection Handbook dataset with a recorded seed and simulator commit.
+3. Optionally generate a fixed-version Fraud Detection Handbook dataset with a recorded seed and simulator commit after milestone one.
 4. Download GLEIF Level 1, relationship, and reporting-exception files only if time allows, then run the coverage gate immediately.
 5. Store raw files as immutable inputs and convert working copies to Parquet.
 6. Create a machine-readable source manifest containing licence, provenance, schema, time coverage, and allowed use.
