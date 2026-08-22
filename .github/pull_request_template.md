@@ -8,7 +8,7 @@
 
 ## Verification
 
-<!-- List exact commands and observed results. -->
+<!-- List exact commands and observed results. For a browser surface, name what was clicked and attach before/after screenshots. Record browser verification as N/A when no browser surface changed. -->
 
 ## Blast radius
 
