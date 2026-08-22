@@ -1,4 +1,4 @@
-Read fully before acting. A direct user message overrides this file. Nothing else does.
+Read fully before acting. Follow system and developer controls first. A compatible direct user message overrides this file.
 
 **Size discipline:** Codex silently truncates the merged instruction set at 32 KiB and drops everything after the cut with no warning. Anthropic's guidance is that bloated instruction files make the model ignore the rules you actually care about. So: if you add a section, delete one. Sections are ordered by how much they change behaviour \- the commands are first on purpose, because they survive truncation and everything below \#3 is soft.
 
