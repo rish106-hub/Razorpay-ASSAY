@@ -1,0 +1,25 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.py[cod]
+context.md
+Context.md
+PLAN.md
+Plan.md
+DEBT.md
+SPEC.md
+.gstack/
+.claude/settings.local.json
+
+# Raw and generated data can be large or have redistribution restrictions.
+data/raw/*
+!data/raw/.gitkeep
+data/staged/*
+!data/staged/.gitkeep
+data/curated/*
+!data/curated/.gitkeep
+data/generated/*
+!data/generated/.gitkeep

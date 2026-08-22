@@ -1,0 +1,70 @@
+sources:
+  - id: mca_company_master
+    priority: P0
+    purpose: core_entity_context
+    canonical_url: https://www.data.gov.in/resource/registrars-companies-roc-wise-company-master-data
+    licence: Government Open Data License - India / source-specific terms
+    declared_data_through: '2023-11-03'
+    access: public_portal_state_or_roc_downloads
+    required_fields:
+      - CORPORATE_IDENTIFICATION_NUMBER
+      - DATE_OF_REGISTRATION
+      - COMPANY_NAME
+      - COMPANY_STATUS
+      - REGISTERED_OFFICE_ADDRESS
+    target_fields: []
+    constraints:
+      - company_status_is_not_fraud_label
+      - preserve_raw_downloads
+      - record_per_file_coverage_and_schema
+
+  - id: nse_sebi_debarred
+    priority: P0
+    purpose: external_adverse_outcome_validation
+    canonical_url: https://www.nseindia.com/static/regulations/member-sebi-debarred-entities
+    licence: verify_on_download
+    access: public_xls_download
+    target_fields:
+      - adverse_regulatory_outcome
+    constraints:
+      - debarment_is_not_synonymous_with_fraud
+      - require_match_quality_audit
+      - use_cin_before_name_matching
+
+  - id: fraud_detection_handbook
+    priority: P1
+    purpose: controlled_verifier_benchmark
+    canonical_url: https://fraud-detection-handbook.github.io/fraud-detection-handbook/Chapter_3_GettingStarted/SimulatedDataset.html
+    licence: GPLv3_for_code_and_CC_BY_SA_4_0_for_documentation
+    access: public_generator
+    constraints:
+      - fixed_seed_required
+      - never_mix_with_mca_labels
+
+  - id: gleif_golden_copy
+    priority: P1
+    purpose: conditional_identity_and_ownership_enrichment
+    canonical_url: https://www.gleif.org/en/lei-data/gleif-golden-copy/download-the-golden-copy
+    licence: CC0
+    access: public_download
+    constraints:
+      - require_india_coverage_gate
+      - require_usable_relationship_edge_count
+
+  - id: opensanctions_nse_debarred
+    priority: P2
+    purpose: normalized_student_prototype_convenience
+    canonical_url: https://www.opensanctions.org/datasets/in_nse_debarred/
+    licence: CC_BY_NC_4_0
+    access: public_download
+    constraints:
+      - noncommercial_only_without_paid_licence
+
+  - id: ieee_cis_fraud_detection
+    priority: deferred
+    purpose: unrelated_transaction_benchmark
+    canonical_url: https://www.kaggle.com/competitions/ieee-fraud-detection/data
+    licence: Kaggle_competition_terms
+    access: Kaggle_account_required
+    constraints:
+      - do_not_make_critical_path
