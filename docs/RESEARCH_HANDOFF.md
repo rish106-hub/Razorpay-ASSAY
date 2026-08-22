@@ -130,7 +130,7 @@ No public submission leaderboard was found as of 22 August 2026, and applicant c
 | Dataset | Role | Current status | Strength | Main limitation | Decision |
 |---|---|---|---|---|---|
 | MCA Company Master Data | Core entity and cohort table | Official source verified; Delhi preview inspected; bulk file not yet acquired | CIN, status, registration date, capital, NIC, address, geography | Underlying data only through 3 Nov 2023; state-by-state delivery; company status is not fraud truth | **Core, conditional on successful bulk acquisition and schema audit** |
-| Official NSE/SEBI debarred entities | Adverse-outcome validation | Official download page verified; file not yet locally acquired | Direct regulatory provenance | Debarment is not fraud; name/CIN coverage must be measured | **Primary adverse label source** |
+| Official NSE/SEBI debarred entities | Adverse-outcome validation | Two official raw files acquired, checksummed, and schema-validated locally | Direct regulatory provenance | Debarment is not fraud; name/CIN coverage must be measured | **Primary adverse label source** |
 | OpenSanctions NSE debarred mirror | Convenient normalized adverse data | Source and licence verified | Daily normalization and searchable entities | CC BY-NC 4.0; unsuitable for a commercial product without a licence | **Student-prototype convenience only** |
 | GLEIF Level 1 LEI | Corporate identity enrichment | Official file endpoints and CC0 terms verified; local file not acquired | Global identifiers; some deterministic registration-authority joins | India coverage is mandate-biased toward larger borrowers | **Conditional enrichment** |
 | GLEIF Level 2 relationships and exceptions | Parent-child graph enrichment | Official endpoints verified; local file not acquired | Reported ownership relationships and exceptions | Only useful where relevant entities have LEIs; usable Indian edges unknown | **Include only if coverage gate passes** |
@@ -375,7 +375,7 @@ No result should be presented using a random row split if the deployment claim i
 ## 12. Immediate acquisition checklist
 
 1. Download all required MCA state/ROC resources and record source URL, retrieval time, checksum, byte size, and declared data date.
-2. Download the official NSE/SEBI spreadsheets and preserve the raw files unchanged.
+2. Preserve the acquired official NSE/SEBI spreadsheets unchanged and verify them against `data/manifests/acquired.yaml` before each canonicalisation run.
 3. Optionally generate a fixed-version Fraud Detection Handbook dataset with a recorded seed and simulator commit after milestone one.
 4. Download GLEIF Level 1, relationship, and reporting-exception files only if time allows, then run the coverage gate immediately.
 5. Store raw files as immutable inputs and convert working copies to Parquet.
@@ -401,7 +401,7 @@ Do not choose the final stack or divide work between Codex and Claude Code until
 ## 14. Current blockers and honest status
 
 - The full MCA bulk extract is not yet local.
-- Official NSE spreadsheets are not yet local.
+- Official NSE spreadsheets are acquired and schema-validated locally; MCA linkage coverage and match precision remain unmeasured.
 - GLEIF endpoints were verified, but files are not yet local.
 - IEEE-CIS is behind Kaggle access and rules.
 - No present-day applicant leaderboard or submission count is public.
