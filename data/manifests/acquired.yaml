@@ -1,0 +1,60 @@
+assets:
+  - id: nse_sebi_debarred_2026_08_22
+    source_id: nse_sebi_debarred
+    source_url: https://nsearchives.nseindia.com/content/press/prs_ra_sebi.xls
+    publisher: National Stock Exchange of India Limited
+    retrieved_at: '2026-08-22T15:28:00+05:30'
+    extract_date: unknown
+    licence_or_terms: unknown_source_specific_terms
+    intended_use: external_adverse_outcome_validation
+    restrictions:
+      - debarment_is_not_fraud_ground_truth
+      - match_quality_audit_required
+      - raw_file_not_redistributed_from_repository
+    provenance_status: incomplete
+    local_path: data/raw/nse_sebi_debarred.xls
+    sha256: 09795988511808cb636d48edf5a92a6e4bfe6c39a160965dd16515a127452753
+    bytes: 8725504
+    format: xls
+    status: schema_validated
+    sheet: Sheet1
+    rows: 11721
+    columns:
+      - Order Date
+      - Order Particulars
+      - Entity / Individual Name
+      - PAN
+      - DIN / CIN
+      - Symbol
+      - Period
+    interpretation: adverse_regulatory_outcome_not_fraud_label
+
+  - id: nse_other_authorities_debarred_2026_08_22
+    source_id: nse_other_authorities_debarred
+    source_url: https://nsearchives.nseindia.com/content/press/prs_ra_others.xls
+    publisher: National Stock Exchange of India Limited
+    retrieved_at: '2026-08-22T15:28:00+05:30'
+    extract_date: unknown
+    licence_or_terms: unknown_source_specific_terms
+    intended_use: external_adverse_outcome_validation
+    restrictions:
+      - adverse_action_is_not_fraud_ground_truth
+      - match_quality_audit_required
+      - raw_file_not_redistributed_from_repository
+    provenance_status: incomplete
+    local_path: data/raw/nse_other_authorities_debarred.xls
+    sha256: 6d7a36ca58298f9cd3b622fb88464cc5330fbb5666925b0a4108a53c596c1f14
+    bytes: 337247
+    format: xlsx_container_with_xls_extension
+    status: schema_validated
+    sheet: Working
+    rows: 4444
+    columns:
+      - Order Date
+      - Order Particulars
+      - Entity / Individual Name
+      - PAN
+      - DIN / CIN
+      - Symbol
+      - Period
+    interpretation: adverse_regulatory_outcome_not_fraud_label

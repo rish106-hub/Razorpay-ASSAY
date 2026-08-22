@@ -1,0 +1,77 @@
+name: branch-guard
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+
+permissions:
+  contents: read
+
+jobs:
+  validate-change-metadata:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate branch, pull request, and commits
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_BRANCH: ${{ github.head_ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          branch_pattern='^(feat|fix|chore|refactor|docs)/[a-z0-9]+(-[a-z0-9]+)*$'
+          conventional_pattern='^(feat|fix|chore|refactor|docs|test|build|ci|perf|revert)(\([a-z0-9-]+\))?!?: .+'
+          prohibited_branch_pattern='(claude|codex|cursor|copilot|🤖)'
+          prohibited_attribution_pattern='(co-authored-by.*(bot|agent|claude|codex|cursor|copilot)|generated (with|by)|written (with|by).*(bot|agent|claude|codex|cursor|copilot)|🤖)'
+
+          if [[ ! "$PR_BRANCH" =~ $branch_pattern ]]; then
+            echo "Invalid branch name: $PR_BRANCH"
+            exit 1
+          fi
+          if grep -Eiq "$prohibited_branch_pattern" <<<"$PR_BRANCH"; then
+            echo "Branch name contains prohibited coding-tool attribution."
+            exit 1
+          fi
+
+          if [[ ! "$PR_TITLE" =~ $conventional_pattern ]]; then
+            echo "Pull request title must use Conventional Commits format."
+            exit 1
+          fi
+
+          metadata=$(printf '%s\n%s\n%s' "$PR_BRANCH" "$PR_TITLE" "${PR_BODY:-}" | tr '[:upper:]' '[:lower:]')
+          if grep -Eiq "$prohibited_attribution_pattern" <<<"$metadata"; then
+            echo "Pull request metadata contains prohibited coding-tool attribution."
+            exit 1
+          fi
+
+          commit_subjects=$(git log --format='%s' "$BASE_SHA..$HEAD_SHA")
+          if [[ -z "$commit_subjects" ]]; then
+            echo "Pull request must contain at least one readable commit."
+            exit 1
+          fi
+          while IFS= read -r commit_subject; do
+            if [[ ! "$commit_subject" =~ $conventional_pattern ]]; then
+              echo "Invalid commit message: $commit_subject"
+              exit 1
+            fi
+          done <<<"$commit_subjects"
+
+          commit_messages=$(git log --format='%s%n%b' "$BASE_SHA..$HEAD_SHA")
+          if grep -Eiq "$prohibited_attribution_pattern" <<<"$commit_messages"; then
+            echo "Commit message contains prohibited coding-tool attribution."
+            exit 1
+          fi
