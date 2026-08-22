@@ -54,7 +54,7 @@ def test_signal_observations_exclude_prior_outcomes_and_preserve_as_of_cutoff() 
         {
             "adverse_event_id": ["prior-event", "window-event"],
             "accepted_company_snapshot_id": ["company-1", "company-2"],
-            "review_status": ["accepted", "accepted"],
+            "review_status": ["accepted", "accepted_reviewed"],
             "outcome_eligible": [True, True],
         }
     )
@@ -79,6 +79,9 @@ def test_signal_observations_exclude_prior_outcomes_and_preserve_as_of_cutoff() 
     assert by_company["company-1"]["has_prior_adverse_outcome"] is True
     assert by_company["company-1"]["evaluation_eligible"] is False
     assert by_company["company-2"]["observed_adverse_outcome"] is True
+    assert by_company["company-2"]["label_match_policy"] == (
+        "accepted_unique_exact_cin_or_completed_human_review"
+    )
     assert by_company["company-2"]["evaluation_eligible"] is True
     assert by_company["company-2"]["shared_address_company_count"] == 2
     assert by_company["company-2"]["shared_address_signal"] is True

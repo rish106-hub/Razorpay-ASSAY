@@ -206,9 +206,23 @@ def build_signal_observations(
         ).alias("address_registration_month_cohort_signal")
     )
 
+    outcome_eligible_statuses = set(
+        match_decision_frame.filter(pl.col("outcome_eligible"))[
+            "review_status"
+        ].to_list()
+    )
+    allowed_outcome_eligible_statuses = {"accepted", "accepted_reviewed"}
+    if not outcome_eligible_statuses <= allowed_outcome_eligible_statuses:
+        raise SignalObservationError(
+            "Outcome-eligible matches contain an unapproved review status."
+        )
+    label_match_policy = (
+        "accepted_unique_exact_cin_or_completed_human_review"
+        if "accepted_reviewed" in outcome_eligible_statuses
+        else "accepted_unique_exact_cin_only"
+    )
     accepted_events = match_decision_frame.filter(
         pl.col("outcome_eligible")
-        & (pl.col("review_status") == "accepted")
         & pl.col("accepted_company_snapshot_id").is_not_null()
     ).join(
         adverse_frame.select("adverse_event_id", "event_date"),
@@ -260,7 +274,7 @@ def build_signal_observations(
         .cast(pl.Date)
         .alias("outcome_window_end"),
         pl.lit("observed_nse_adverse_regulatory_outcome").alias("target_name"),
-        pl.lit("accepted_unique_exact_cin_only").alias("label_match_policy"),
+        pl.lit(label_match_policy).alias("label_match_policy"),
         pl.lit(SIGNAL_OBSERVATION_SCHEMA_VERSION).alias("schema_version"),
     ).select(
         pl.concat_str(
