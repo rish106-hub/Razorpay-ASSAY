@@ -58,12 +58,12 @@ Use Parquet for canonical and derived data. Use DuckDB only as the local query e
 | Generated | `data/generated/` | Run reports and metrics | Never a hidden source of truth |
 | Manifest | `data/manifests/` | Source/acquisition provenance | Append versioned acquisition entries |
 
-Canonical tables carry `source_id`, `source_record_id`, `source_file_sha256`, `observed_at`, and `schema_version`. Derived tables also carry `run_id`, `code_revision`, and `as_of_date`.
+Canonical tables carry `source_id`, `source_record_id`, `source_file_sha256`, `source_snapshot_id`, `snapshot_as_of`, `observed_at`, and `schema_version`. Mutable company facts also carry source-backed `valid_from` and `valid_to` when those dates are known. Never infer an effective date from retrieval time. Derived tables carry `run_id`, `code_revision`, and `as_of_date`.
 
 | Table | Grain | Decision it supports |
 | --- | --- | --- |
-| `company` | one MCA company record per CIN | Eligible entity population and temporal cohorts |
-| `company_address` | one normalised address per company | Address groups without treating reuse as a label |
+| `company_snapshot` | one MCA company record per CIN and source snapshot | Eligible entity population and leakage-safe temporal cohorts |
+| `company_address_snapshot` | one normalised address per company and source snapshot | As-of address groups without treating reuse as a label |
 | `adverse_event` | one regulatory row from NSE | Narrow, sourced outcome target |
 | `entity_match` | one MCA-to-NSE candidate match | Label coverage and false-match audit |
 | `signal_definition` | one versioned signal specification | Exact audit reproducibility |
@@ -71,7 +71,9 @@ Canonical tables carry `source_id`, `source_record_id`, `source_file_sha256`, `o
 | `evaluation_slice` | one run and holdout slice | Stability and generalisation checks |
 | `verdict` | one signal/run | Final result with evidence pointers |
 
-No table stores a generic `fraud_label`. No feature can use data after its outcome window begins. No mutable overwrite hides a previous run.
+Company and address snapshots are append-only. As-of features may use only a snapshot whose `snapshot_as_of` precedes the feature cutoff. When a source does not provide effective validity, `valid_from` and `valid_to` remain null and the pipeline must not claim that the fact was valid between snapshots.
+
+No table stores a generic `fraud_label`. Features cannot use data after their outcome window begins, and mutable overwrites never hide a previous source or evaluation run.
 
 ## Matching policy
 
