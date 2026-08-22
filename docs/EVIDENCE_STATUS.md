@@ -15,6 +15,22 @@ the earlier exploratory hypothesis.
 - Ambiguous name events awaiting review: 58.
 - Unmatched NSE events: 13,933.
 
+## Separate merchant-solvency outcome
+
+- Official IBBI CIRP export rows: 9,067.
+- Canonical dated valid-CIN announcements: 8,523 across 7,979 companies.
+- Rows quarantined: 535 invalid CINs and 9 malformed TSV rows.
+- Unique companies announced after the MCA cutoff: 1,963.
+- Exact post-cutoff CIN matches to the MCA snapshot: 1,931; unmatched: 32.
+- Year coverage after the cutoff: 140 in 2023, 782 in 2024, 615 in 2025,
+  and 426 in 2026.
+
+This target is `cirp_public_announcement_outcome`. It measures a public
+merchant-solvency event, not fraud or regulatory debarment. The event date is
+the announcement date, not the CIRP commencement date. It has enough positives
+to build and evaluate a separate held-out model, but no metric is claimed until
+the observation, leakage, geography, and temporal-split gates run.
+
 ## Leakage-safe signal population
 
 - Feature cutoff: 3 November 2023.
@@ -31,7 +47,7 @@ until the reviewed outcome set passes the frozen evidence threshold.
 
 ## Model decision
 
-The entity-risk decision is `DO_NOT_TRAIN` for now. Eight positive outcomes are
+The NSE regulatory entity-risk decision is `DO_NOT_TRAIN` for now. Eight positive outcomes are
 below the frozen minimum of 20 in each required slice even before the data is
 partitioned into unseen-geography and temporal holdouts. The review workbook
 contains 557 candidate rows across 498 sampled events. A real reviewer must
@@ -62,3 +78,4 @@ a Razorpay production model and cannot be transferred to MCA/NSE entity risk.
 4. Written clearance if NSE-derived artifacts or row-level data will be
    redistributed. The source extract date remains unknown, so provenance stays
    incomplete.
+5. Written reuse clearance before redistributing IBBI raw or row-level data.

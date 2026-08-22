@@ -40,6 +40,17 @@ Canonicalise official NSE regulatory sources separately with:
 uv run python -m assay.cli.canonicalise_nse
 ```
 
+Canonicalise the official IBBI CIRP public-announcement export as a separate
+merchant-solvency outcome with:
+
+```bash
+uv run python -m assay.cli.canonicalise_ibbi
+```
+
+The IBBI contract accepts exact valid CINs, quarantines malformed publisher
+rows, and uses the public-announcement date as the event date. It does not call
+insolvency fraud or treat the announcement date as CIRP commencement.
+
 Link explicit, quality-passed MCA and NSE snapshots. Only a unique exact CIN
 match is outcome-eligible. Exact-name matches stay pending for human review.
 

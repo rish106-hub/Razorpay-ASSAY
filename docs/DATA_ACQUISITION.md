@@ -4,12 +4,14 @@
 
 1. Acquire and checksum MCA Company Master Data.
 2. Acquire official NSE and SEBI `adverse_regulatory_outcome` files.
-3. Run schema, null, duplicate, and date-coverage audits.
-4. Resolve entities with conservative matching rules and record match evidence.
-5. Reproduce candidate-signal tests, starting with the shared-address claim.
-6. Optionally generate the Fraud Detection Handbook controlled dataset after
+3. Acquire the official IBBI CIRP public-announcement export as a separate
+   `cirp_public_announcement_outcome` source.
+4. Run schema, null, duplicate, and date-coverage audits.
+5. Resolve entities with conservative matching rules and record match evidence.
+6. Reproduce candidate-signal tests, starting with the shared-address claim.
+7. Optionally generate the Fraud Detection Handbook controlled dataset after
    the core milestone; it does not block milestone one.
-7. Acquire GLEIF files if the MCA/NSE join requires identity or ownership
+8. Acquire GLEIF files if the MCA/NSE join requires identity or ownership
    enrichment.
 
 ## Source rules
@@ -18,6 +20,7 @@
 | --- | --- | --- | --- |
 | MCA Company Master Data | Core legal-entity records | Full 3,674,314-record API snapshot acquired and checksum-addressed | Record source URL, download date, extract date and checksum. |
 | NSE / SEBI | Official adverse validation | 16,165 official rows acquired, schema-validated, and canonicalised | Retain original source file and source URL. Do not call all listings fraud. |
+| IBBI CIRP announcements | Separate merchant-solvency outcome | 9,067 official rows acquired; 8,523 dated valid-CIN events canonicalised | Use announcement date as the public event date. Do not call insolvency fraud or CIRP commencement. |
 | GLEIF | Entity identity and ownership enrichment | Not acquired | Check applicable reuse terms before staging. |
 | Fraud Detection Handbook | Optional controlled benchmark | Pinned Colab T4 benchmark complete; isolated from entity risk | Label it synthetic in all results and demos. |
 | IEEE-CIS | Optional transaction benchmark | Not acquired | Require Kaggle access; do not block milestone one. |

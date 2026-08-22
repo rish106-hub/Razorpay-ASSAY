@@ -63,6 +63,22 @@ sources:
       - never_mix_with_mca_labels
       - does_not_block_milestone_one
 
+  - id: ibbi_cirp_public_announcements
+    priority: P0
+    publisher: Insolvency and Bankruptcy Board of India
+    purpose: merchant_solvency_outcome_validation
+    canonical_url: https://ibbi.gov.in/public-announcement
+    licence: unknown_IBBI_website_reuse_terms
+    access: public_filtered_tsv_export
+    target_fields:
+      - cirp_public_announcement_outcome
+    constraints:
+      - insolvency_is_not_synonymous_with_fraud
+      - announcement_date_is_not_cirp_commencement_date
+      - use_valid_cin_only_for_automatic_linkage
+      - quarantine_malformed_publisher_rows
+      - no_raw_redistribution_until_terms_are_cleared
+
   - id: gleif_golden_copy
     priority: P1
     publisher: Global Legal Entity Identifier Foundation
