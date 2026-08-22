@@ -93,6 +93,31 @@ uv run python -m assay.cli.evaluate_signals \
   --false-positive-review-cost-inr 100
 ```
 
+Evaluation cost is a risk-operations input. Replace the example INR amount
+with the measured review cost before treating any cost result as evidence.
+
+Build the frontend-safe readiness artifact from one consistent evidence chain:
+
+```bash
+uv run python -m assay.cli.build_evidence_readiness \
+  --mca-report data/generated/mca_canonicalisation/<snapshot>.report.json \
+  --nse-report data/generated/nse_canonicalisation/<snapshot>.report.json \
+  --linkage-report data/generated/entity_linkage/<run>.report.json \
+  --observation-report data/generated/signal_observation/<run>.report.json
+```
+
+Serve that immutable artifact through the read-only backend:
+
+```bash
+export ASSAY_EVIDENCE_REPORT_PATH=data/generated/evidence_readiness/<report>.json
+uv run uvicorn assay.api.app:app --host 127.0.0.1 --port 8000
+```
+
+The frontend contract is available at `GET /v1/evidence/readiness`, the model
+gate at `GET /v1/model/readiness`, and process health at `GET /healthz`.
+Configure production frontend origins with `ASSAY_ALLOWED_ORIGINS`. The API
+does not read raw source data, train models, or calculate merchant scores.
+
 ## Controlled GPU benchmark
 
 [`notebooks/ASSAY.ipynb`](notebooks/ASSAY.ipynb) is the Colab training runner
