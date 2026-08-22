@@ -50,3 +50,16 @@ calibration, and review capacity are the decision metrics.
 
 The notebook is [`notebooks/ASSAY.ipynb`](../notebooks/ASSAY.ipynb). Large
 model artifacts stay under ignored `data/generated/` and are not committed.
+
+Verify the downloaded package, checksum chain, XGBoost feature order, and CPU
+model loading with:
+
+```bash
+uv sync --extra gpu --locked
+uv run python -m assay.cli.verify_controlled_benchmark \
+  --run-directory data/generated/controlled_benchmark/run-6e3ca5849b46
+```
+
+The reusable scorer returns only
+`controlled_transaction_fraud_score`. It does not choose an operating
+threshold, create a Razorpay action, or enter the MCA/NSE entity-risk API.

@@ -134,6 +134,13 @@ a Razorpay production model. Install its optional local dependency with:
 uv sync --extra gpu
 ```
 
+Verify a downloaded Colab package before scoring:
+
+```bash
+uv run python -m assay.cli.verify_controlled_benchmark \
+  --run-directory data/generated/controlled_benchmark/run-6e3ca5849b46
+```
+
 The resulting `adverse_event` artifacts keep SEBI and other-authority actions
 separate and name the target `adverse_regulatory_outcome`. They do not create a
 generic fraud label.
