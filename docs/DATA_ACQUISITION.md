@@ -3,7 +3,7 @@
 ## Order of work
 
 1. Acquire and checksum MCA Company Master Data.
-2. Acquire official NSE and SEBI adverse-action files.
+2. Acquire official NSE and SEBI `adverse_regulatory_outcome` files.
 3. Run schema, null, duplicate, and date-coverage audits.
 4. Resolve entities with conservative matching rules and record match evidence.
 5. Reproduce candidate-signal tests, starting with the shared-address claim.
@@ -35,8 +35,8 @@ inheritance. Unknown licence or extract dates must be explicit and force
 
 - How many legal entities share an address?
 - Which shared-address groups have independent adverse evidence?
-- Does adding director, ownership, time, and adverse-action evidence materially
+- Does adding director, ownership, time, and `adverse_regulatory_outcome` evidence materially
   reduce false positives?
 - What fraction of MCA records join to NSE/SEBI with strong, reviewable match
   evidence?
-- Is each signal SHIP, DO NOT SHIP, or RE-UNIT?
+- Is each signal `SHIP`, `DO_NOT_SHIP`, or `RE_UNIT`?
