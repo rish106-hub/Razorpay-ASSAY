@@ -40,6 +40,15 @@ Canonicalise official NSE regulatory sources separately with:
 uv run python -m assay.cli.canonicalise_nse
 ```
 
+Link explicit, quality-passed MCA and NSE snapshots. Only a unique exact CIN
+match is outcome-eligible. Exact-name matches stay pending for human review.
+
+```bash
+uv run python -m assay.cli.link_entities \
+  --mca-report data/generated/mca_canonicalisation/<snapshot>.report.json \
+  --nse-report data/generated/nse_canonicalisation/<snapshot>.report.json
+```
+
 The resulting `adverse_event` artifacts keep SEBI and other-authority actions
 separate and name the target `adverse_regulatory_outcome`. They do not create a
 generic fraud label.
