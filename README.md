@@ -93,6 +93,22 @@ uv run python -m assay.cli.evaluate_signals \
   --false-positive-review-cost-inr 100
 ```
 
+## Controlled GPU benchmark
+
+[`notebooks/ASSAY.ipynb`](notebooks/ASSAY.ipynb) is the Colab training runner
+for the Fraud Detection Handbook simulated transaction benchmark. It pins the
+upstream revision, uses non-random temporal splits with seven-day embargoes,
+trains an XGBoost candidate on a T4, compares it with an amount-only baseline,
+and exports checksummed model and metric artifacts.
+
+This benchmark proves transaction-fraud model mechanics only. Its labels and
+model must never be mixed with MCA/NSE entity-risk observations or presented as
+a Razorpay production model. Install its optional local dependency with:
+
+```bash
+uv sync --extra gpu
+```
+
 The resulting `adverse_event` artifacts keep SEBI and other-authority actions
 separate and name the target `adverse_regulatory_outcome`. They do not create a
 generic fraud label.
