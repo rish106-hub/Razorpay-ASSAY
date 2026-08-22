@@ -32,7 +32,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          branch_pattern='^(feat|fix|chore|refactor|docs|exp)/[a-z0-9]+(-[a-z0-9]+)*$'
+          branch_pattern='^(feat|fix|chore|refactor|docs)/[a-z0-9]+(-[a-z0-9]+)*$'
           conventional_pattern='^(feat|fix|chore|refactor|docs|test|build|ci|perf|revert)(\([a-z0-9-]+\))?!?: .+'
           prohibited_pattern='(claude|codex|cursor|copilot|co-authored-by.*(bot|agent)|generated with)'
 
