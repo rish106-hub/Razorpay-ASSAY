@@ -30,7 +30,7 @@ assets:
     interpretation: adverse_regulatory_outcome_not_fraud_label
 
   - id: nse_other_authorities_debarred_2026_08_22
-    source_id: nse_sebi_debarred
+    source_id: nse_other_authorities_debarred
     source_url: https://nsearchives.nseindia.com/content/press/prs_ra_others.xls
     publisher: National Stock Exchange of India Limited
     retrieved_at: '2026-08-22T15:28:00+05:30'

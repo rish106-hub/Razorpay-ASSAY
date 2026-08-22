@@ -33,6 +33,20 @@ sources:
       - require_match_quality_audit
       - use_cin_before_name_matching
 
+  - id: nse_other_authorities_debarred
+    priority: P0
+    publisher: National Stock Exchange of India Limited
+    purpose: external_other_authority_outcome_validation
+    canonical_url: https://nsearchives.nseindia.com/content/press/prs_ra_others.xls
+    licence: unknown_source_specific_terms
+    access: public_xls_download
+    target_fields:
+      - adverse_regulatory_outcome
+    constraints:
+      - other_authority_action_is_not_synonymous_with_fraud
+      - require_match_quality_audit
+      - use_cin_before_name_matching
+
   - id: fraud_detection_handbook
     priority: P2
     publisher: Fraud Detection Handbook project
