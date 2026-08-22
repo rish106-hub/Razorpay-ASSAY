@@ -22,7 +22,7 @@ Skip the question only for: one-file typo fixes, doc-only edits, dependency bump
 
 2. Your job is to break a task / goal into multiple subparts. Complete each subpart, update `context.md` properly and in detail, then use `/clear` to clear context.
 
-    `context.md` records **state and decisions**, not narration. Bad: "I refactored the auth module." Good: "Auth uses Lucia, not NextAuth \- NextAuth's session model fought multi-tenant scoping. See `lib/auth.ts`." Write down what you got wrong, not just what you did. That's the part that saves the next session.
+    `context.md` records **state and decisions**, not narration. Bad: "I updated the MCA downloader." Good: "MCA raw pages are immutable; only `checkpoint.json` advances. A page without a matching checkpoint requires checksum audit before resume." Write down what you got wrong, not just what you did. That's the part that saves the next session.
 
 3. Refer to `context.md` before restarting.
 
@@ -178,7 +178,7 @@ refactor/\<short-kebab-scope\>  no behaviour change
 docs/\<short-kebab-scope\>      docs only  
 exp/\<short-kebab-scope\>       throwaway spike, never merged
 
-* The scope names **the content being pushed through that branch**, not the ticket number. `feat/candidate-dedupe`, not `feat/RIS-114`.  
+* The scope names **the content being pushed through that branch**, not the ticket number. `feat/mca-acquisition`, not `feat/RIS-114`.
 * One branch \= one shippable unit. If the PR description needs the word "and" twice, split the branch.  
 * Sub-branches off a feature branch are fine for stacked work; name them the same way and merge the stack bottom-up.  
 * Before pushing: `git fetch origin && git rebase origin/main`, resolve conflicts locally, then re-run \#3 in full.
@@ -187,11 +187,11 @@ Enforced server-side by `.github/workflows/branch-guard.yml`. GitHub's native br
 
 **Commits:** conventional commits, imperative mood, no AI attribution anywhere.
 
-feat(candidates): dedupe on normalised email \+ phone
+feat(acquisition): resume MCA pages by offset
 
-Applicants imported from two sources produced duplicate records.  
-Normalises on lowercase email and E.164 phone, keeps the earliest  
-created\_at, merges tags. Backfill in migration 0014\.
+Network timeouts interrupted the company-master pull.
+Persists per-page checksums and advances the checkpoint only after
+an immutable raw page is published.
 
 ## **\#7. PR AND REVIEW LOOP**
 
