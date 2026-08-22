@@ -27,9 +27,14 @@ the earlier exploratory hypothesis.
 
 This target is `cirp_public_announcement_outcome`. It measures a public
 merchant-solvency event, not fraud or regulatory debarment. The event date is
-the announcement date, not the CIRP commencement date. It has enough positives
-to build and evaluate a separate held-out model, but no metric is claimed until
-the observation, leakage, geography, and temporal-split gates run.
+the announcement date, not the CIRP commencement date.
+
+The leakage-safe observation run contains 2,574,352 eligible exact-CIN
+companies after excluding 5,777 companies with a prior CIRP announcement. It
+has 1,823 observed outcomes, including 298 in the frozen unseen-geography slice
+and 408 in the prospective 2026 temporal slice. All three counts clear the
+predeclared minimum of 20, so the separate solvency target is `READY_TO_TRAIN`.
+No model metric is claimed until training and held-out evaluation complete.
 
 ## Leakage-safe signal population
 

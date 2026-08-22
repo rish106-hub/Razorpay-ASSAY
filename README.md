@@ -51,6 +51,20 @@ The IBBI contract accepts exact valid CINs, quarantines malformed publisher
 rows, and uses the public-announcement date as the event date. It does not call
 insolvency fraud or treat the announcement date as CIRP commencement.
 
+Build the leakage-safe MCA-to-IBBI solvency population with explicit snapshots:
+
+```bash
+uv run python -m assay.cli.build_solvency_observations \
+  --mca-report data/generated/mca_canonicalisation/<snapshot>.report.json \
+  --ibbi-report data/generated/ibbi_canonicalisation/<snapshot>.report.json \
+  --outcome-window-end 2026-08-21 \
+  --temporal-holdout-start 2026-01-01
+```
+
+The frozen unseen-geography slice is Karnataka, Kerala, Tamil Nadu, and
+Telangana. Training remains blocked unless the overall, geography, and temporal
+slices each contain at least 20 exact-CIN outcomes.
+
 Link explicit, quality-passed MCA and NSE snapshots. Only a unique exact CIN
 match is outcome-eligible. Exact-name matches stay pending for human review.
 
