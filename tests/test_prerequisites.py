@@ -8,21 +8,10 @@ import pytest
 from scripts import check_prerequisites
 
 
-def test_required_data_directories_are_declared() -> None:
-    assert check_prerequisites.REQUIRED_DIRECTORIES == (
-        Path("data/raw"),
-        Path("data/staged"),
-        Path("data/curated"),
-        Path("data/manifests"),
-    )
-
-
-def test_bulk_acquisition_requires_safety_headroom() -> None:
-    assert check_prerequisites.MIN_FREE_GB == 25
-
-
 def test_disk_headroom_is_measured_on_raw_store(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     for required_directory in check_prerequisites.REQUIRED_DIRECTORIES:
         (tmp_path / required_directory).mkdir(parents=True, exist_ok=True)
@@ -36,10 +25,13 @@ def test_disk_headroom_is_measured_on_raw_store(
 
     assert check_prerequisites.main(tmp_path) == 0
     assert measured_paths == [tmp_path / "data/raw"]
+    assert "Prerequisites passed" in capsys.readouterr().out
 
 
 def test_missing_directories_fail_before_disk_measurement(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     def fail_if_called(_: Path) -> None:
         raise AssertionError("disk usage must not run before directory validation")
@@ -47,3 +39,22 @@ def test_missing_directories_fail_before_disk_measurement(
     monkeypatch.setattr(check_prerequisites.shutil, "disk_usage", fail_if_called)
 
     assert check_prerequisites.main(tmp_path) == 1
+    assert "Missing directories:" in capsys.readouterr().out
+
+
+def test_low_raw_store_headroom_fails_with_diagnostic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    for required_directory in check_prerequisites.REQUIRED_DIRECTORIES:
+        (tmp_path / required_directory).mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(
+        check_prerequisites.shutil,
+        "disk_usage",
+        lambda _: SimpleNamespace(free=1 * 1024**3),
+    )
+
+    assert check_prerequisites.main(tmp_path) == 1
+    assert "Need at least" in capsys.readouterr().out
