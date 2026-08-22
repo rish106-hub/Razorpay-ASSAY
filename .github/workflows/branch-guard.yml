@@ -34,10 +34,15 @@ jobs:
 
           branch_pattern='^(feat|fix|chore|refactor|docs)/[a-z0-9]+(-[a-z0-9]+)*$'
           conventional_pattern='^(feat|fix|chore|refactor|docs|test|build|ci|perf|revert)(\([a-z0-9-]+\))?!?: .+'
-          prohibited_pattern='(claude|codex|cursor|copilot|co-authored-by.*(bot|agent)|generated with|🤖)'
+          prohibited_branch_pattern='(claude|codex|cursor|copilot|🤖)'
+          prohibited_attribution_pattern='(co-authored-by.*(bot|agent|claude|codex|cursor|copilot)|generated (with|by)|written (with|by).*(bot|agent|claude|codex|cursor|copilot)|🤖)'
 
           if [[ ! "$PR_BRANCH" =~ $branch_pattern ]]; then
             echo "Invalid branch name: $PR_BRANCH"
+            exit 1
+          fi
+          if grep -Eiq "$prohibited_branch_pattern" <<<"$PR_BRANCH"; then
+            echo "Branch name contains prohibited coding-tool attribution."
             exit 1
           fi
 
@@ -47,7 +52,7 @@ jobs:
           fi
 
           metadata=$(printf '%s\n%s\n%s' "$PR_BRANCH" "$PR_TITLE" "${PR_BODY:-}" | tr '[:upper:]' '[:lower:]')
-          if grep -Eiq "$prohibited_pattern" <<<"$metadata"; then
+          if grep -Eiq "$prohibited_attribution_pattern" <<<"$metadata"; then
             echo "Pull request metadata contains prohibited coding-tool attribution."
             exit 1
           fi
@@ -59,7 +64,7 @@ jobs:
             fi
           done < <(git log --format='%s' "$BASE_SHA..$HEAD_SHA")
 
-          if git log --format='%s%n%b' "$BASE_SHA..$HEAD_SHA" | grep -Eiq "$prohibited_pattern"; then
+          if git log --format='%s%n%b' "$BASE_SHA..$HEAD_SHA" | grep -Eiq "$prohibited_attribution_pattern"; then
             echo "Commit message contains prohibited coding-tool attribution."
             exit 1
           fi
