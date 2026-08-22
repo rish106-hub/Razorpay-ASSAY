@@ -15,9 +15,10 @@ from assay.artifacts.parquet import (
     ParquetArtifact,
     write_immutable_parquet,
 )
+from assay.contracts.identifiers import INDIAN_CIN_PATTERN
 from assay.contracts.provenance import MerchantRiskAsset, load_and_validate_manifests
 
-NSE_ADVERSE_EVENT_SCHEMA_VERSION = "1.0.0"
+NSE_ADVERSE_EVENT_SCHEMA_VERSION = "1.1.0"
 NSE_SOURCE_IDS = frozenset(
     {"nse_sebi_debarred", "nse_other_authorities_debarred"}
 )
@@ -137,7 +138,7 @@ def _canonicalise_adverse_frame(
         .otherwise(None)
         .alias("pan_candidate"),
         pl.col("DIN / CIN").fill_null("").alias("din_cin_raw"),
-        pl.when(identifier_normalized.str.contains(r"^[A-Z0-9]{21}$"))
+        pl.when(identifier_normalized.str.contains(INDIAN_CIN_PATTERN))
         .then(identifier_normalized)
         .otherwise(None)
         .alias("cin_candidate"),
@@ -192,11 +193,15 @@ class NseCanonicaliser:
             separators=(",", ":"),
         ).encode("utf-8")
         source_snapshot_id = hashlib.sha256(source_snapshot_payload).hexdigest()
-        snapshot_directory = self._resolve(self._config.curated_root) / (
+        versioned_snapshot_name = (
+            f"schema-{NSE_ADVERSE_EVENT_SCHEMA_VERSION}/"
             f"snapshot-{source_snapshot_id}"
         )
+        snapshot_directory = (
+            self._resolve(self._config.curated_root) / versioned_snapshot_name
+        )
         report_path = self._resolve(self._config.generated_report_root) / (
-            f"snapshot-{source_snapshot_id}.report.json"
+            f"{versioned_snapshot_name}.report.json"
         )
         if snapshot_directory.exists() or report_path.exists():
             raise NseCanonicalisationError(

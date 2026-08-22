@@ -18,8 +18,9 @@ from assay.artifacts.parquet import (
     sha256_file,
     write_immutable_parquet,
 )
+from assay.contracts.identifiers import INDIAN_CIN_PATTERN
 
-MCA_CANONICAL_SCHEMA_VERSION = "1.0.0"
+MCA_CANONICAL_SCHEMA_VERSION = "1.1.0"
 MCA_SOURCE_DATA_THROUGH = date(2023, 11, 3)
 MCA_CANONICAL_SOURCE_FIELDS = frozenset(
     {
@@ -132,7 +133,7 @@ def _canonical_company_frame(
         pl.col("CIN")
         .str.strip_chars()
         .str.to_uppercase()
-        .str.contains(r"^[A-Z0-9]{21}$")
+        .str.contains(INDIAN_CIN_PATTERN)
         .alias("cin_is_valid_format"),
         pl.lit(None, dtype=pl.Date).alias("valid_from"),
         pl.lit(None, dtype=pl.Date).alias("valid_to"),
@@ -195,7 +196,9 @@ class McaCanonicaliser:
                 "MCA acquisition is incomplete; canonicalisation is blocked."
             )
         source_snapshot_id = hashlib.sha256(checkpoint_bytes).hexdigest()
-        snapshot_directory_name = f"snapshot-{source_snapshot_id}"
+        snapshot_directory_name = (
+            f"schema-{MCA_CANONICAL_SCHEMA_VERSION}/snapshot-{source_snapshot_id}"
+        )
         staged_directory = self._config.staged_root / snapshot_directory_name
         company_directory = (
             self._config.curated_company_root / snapshot_directory_name
