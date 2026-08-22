@@ -12,6 +12,11 @@ from assay.reporting.readiness import (
     SignalPopulationSummary,
     SourceEvidenceSummary,
 )
+from assay.solvency.evaluation import (
+    SolvencyHoldoutEvaluationReport,
+    SolvencyReviewCapacityMetrics,
+    SolvencySplitMetrics,
+)
 
 
 def _write_evidence_report(report_path: Path) -> EvidenceReadinessReport:
@@ -58,6 +63,43 @@ def _write_evidence_report(report_path: Path) -> EvidenceReadinessReport:
     return report
 
 
+def _write_solvency_evaluation(
+    report_path: Path,
+) -> SolvencyHoldoutEvaluationReport:
+    capacity = SolvencyReviewCapacityMetrics(
+        capacity_fraction=0.001,
+        review_rows=1,
+        precision=0.5,
+        recall=0.25,
+        lift=100.0,
+    )
+    split = SolvencySplitMetrics(
+        dataset_split="temporal_test",
+        rows=1_000,
+        positive_rows=5,
+        base_rate=0.005,
+        diagnostic_accuracy_at_0_5=0.99,
+        pr_auc=0.4,
+        roc_auc=0.9,
+        brier_score=0.004,
+        score_minimum=0.0,
+        score_maximum=0.8,
+        score_mean=0.01,
+        review_capacities=(capacity,),
+    )
+    report = SolvencyHoldoutEvaluationReport(
+        label_boundary="cirp_public_announcement_outcome_not_fraud",
+        model_sha256="f" * 64,
+        model_data_path=Path("model-data.parquet"),
+        holdouts_are_unsampled=True,
+        evaluation_decision="EVALUATED_NOT_PRODUCTION_READY",
+        deployment_blockers=("Payment telemetry is missing.",),
+        split_metrics={"temporal_test": split},
+    )
+    report_path.write_text(report.model_dump_json(), encoding="utf-8")
+    return report
+
+
 def test_api_serves_one_immutable_evidence_report(tmp_path: Path) -> None:
     report_path = tmp_path / "evidence.json"
     expected_report = _write_evidence_report(report_path)
@@ -98,3 +140,31 @@ def test_api_allows_configured_frontend_origin(
     assert response.headers["access-control-allow-origin"] == (
         "https://assay.example"
     )
+
+
+def test_api_serves_optional_solvency_evaluation(tmp_path: Path) -> None:
+    evidence_path = tmp_path / "evidence.json"
+    evaluation_path = tmp_path / "solvency.json"
+    _write_evidence_report(evidence_path)
+    expected = _write_solvency_evaluation(evaluation_path)
+
+    with TestClient(create_app(evidence_path, evaluation_path)) as client:
+        health_response = client.get("/healthz")
+        evaluation_response = client.get("/v1/models/solvency/evaluation")
+
+    assert health_response.json()["solvency_evaluation_available"] is True
+    assert evaluation_response.status_code == 200
+    assert evaluation_response.json()["model_sha256"] == expected.model_sha256
+    assert evaluation_response.headers["etag"].startswith('"')
+
+
+def test_api_returns_503_when_solvency_evaluation_is_not_configured(
+    tmp_path: Path,
+) -> None:
+    evidence_path = tmp_path / "evidence.json"
+    _write_evidence_report(evidence_path)
+
+    with TestClient(create_app(evidence_path)) as client:
+        response = client.get("/v1/models/solvency/evaluation")
+
+    assert response.status_code == 503

@@ -147,11 +147,13 @@ Serve that immutable artifact through the read-only backend:
 
 ```bash
 export ASSAY_EVIDENCE_REPORT_PATH=data/generated/evidence_readiness/<report>.json
+export ASSAY_SOLVENCY_EVALUATION_PATH=data/generated/solvency_model/<run>/holdout_metrics.json
 uv run uvicorn assay.api.app:app --host 127.0.0.1 --port 8000
 ```
 
 The frontend contract is available at `GET /v1/evidence/readiness`, the model
-gate at `GET /v1/model/readiness`, and process health at `GET /healthz`.
+gate at `GET /v1/model/readiness`, the optional public-solvency evaluation at
+`GET /v1/models/solvency/evaluation`, and process health at `GET /healthz`.
 Configure production frontend origins with `ASSAY_ALLOWED_ORIGINS`. The API
 does not read raw source data, train models, or calculate merchant scores.
 
