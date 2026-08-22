@@ -22,3 +22,14 @@ uv run python -m assay.cli.acquire_mca --page-size 100 --max-pages 1
 The command reads `DATA_GOV_IN_API_KEY`, publishes checksum-named immutable raw
 pages, and advances `checkpoint.json` only after a valid page is stored. Keep
 the default bounded run until schema and storage artifacts have been audited.
+
+After the acquisition checkpoint is complete, canonicalise it with:
+
+```bash
+uv run python -m assay.cli.canonicalise_mca
+```
+
+This writes versioned staged Parquet, append-only `company_snapshot` and
+`company_address_snapshot` artifacts, and a deterministic quality report. The
+source cutoff remains 3 November 2023; retrieval time is not treated as an
+effective date.

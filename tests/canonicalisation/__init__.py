@@ -1,0 +1,1 @@
+"""Canonicalisation test package."""
