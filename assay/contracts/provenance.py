@@ -42,6 +42,11 @@ class MerchantRiskAsset(BaseModel):
     local_path: str = Field(min_length=1)
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     bytes: int = Field(gt=0)
+    format: str = Field(min_length=1)
+    status: str = Field(min_length=1)
+    sheet: str = Field(min_length=1)
+    rows: int = Field(gt=0)
+    columns: tuple[str, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
     def reject_false_complete_status(self) -> MerchantRiskAsset:

@@ -33,3 +33,13 @@ This writes versioned staged Parquet, append-only `company_snapshot` and
 `company_address_snapshot` artifacts, and a deterministic quality report. The
 source cutoff remains 3 November 2023; retrieval time is not treated as an
 effective date.
+
+Canonicalise official NSE regulatory sources separately with:
+
+```bash
+uv run python -m assay.cli.canonicalise_nse
+```
+
+The resulting `adverse_event` artifacts keep SEBI and other-authority actions
+separate and name the target `adverse_regulatory_outcome`. They do not create a
+generic fraud label.

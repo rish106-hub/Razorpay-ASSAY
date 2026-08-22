@@ -25,7 +25,7 @@ assets:
       - Entity / Individual Name
       - PAN
       - DIN / CIN
-      - Symbol
+      - "Symbol "
       - Period
     interpretation: adverse_regulatory_outcome_not_fraud_label
 
@@ -55,6 +55,6 @@ assets:
       - Entity / Individual Name
       - PAN
       - DIN / CIN
-      - Symbol
+      - "Symbol "
       - Period
     interpretation: adverse_regulatory_outcome_not_fraud_label
