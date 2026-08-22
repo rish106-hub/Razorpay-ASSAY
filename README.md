@@ -96,6 +96,18 @@ uv run python -m assay.cli.evaluate_signals \
 Evaluation cost is a risk-operations input. Replace the example INR amount
 with the measured review cost before treating any cost result as evidence.
 
+After an evaluation run, publish the immutable verdict with an approved
+false-positive review-spend budget:
+
+```bash
+uv run python -m assay.cli.publish_verdict \
+  --evaluation-report data/generated/evaluation/<run>.report.json \
+  --false-positive-review-cost-budget-inr <approved-inr-budget>
+```
+
+The backend emits `SHIP`, `DO_NOT_SHIP`, or `RE_UNIT`. The frontend only
+renders that result and its reason codes.
+
 Build the frontend-safe readiness artifact from one consistent evidence chain:
 
 ```bash
