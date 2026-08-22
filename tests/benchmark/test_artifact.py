@@ -4,10 +4,14 @@ import hashlib
 import json
 from pathlib import Path
 
+import polars as pl
 import pytest
 
 from assay.benchmark.artifact import (
+    TRANSACTION_VELOCITY_MODEL_FEATURES,
+    TRANSACTION_VELOCITY_RAW_FEATURES,
     ControlledBenchmarkArtifactError,
+    engineer_transaction_velocity_features,
     load_controlled_benchmark_package,
 )
 
@@ -65,3 +69,61 @@ def test_package_rejects_changed_model_bytes(tmp_path: Path) -> None:
         match="model checksum mismatch",
     ):
         load_controlled_benchmark_package(run_directory, load_model=False)
+
+
+def test_transaction_velocity_contract_builds_features_in_frozen_order() -> None:
+    raw_frame = pl.DataFrame(
+        {
+            "TX_AMOUNT": [200.0],
+            "TX_DURING_WEEKEND": [0],
+            "TX_DURING_NIGHT": [1],
+            "CUSTOMER_ID_NB_TX_1DAY_WINDOW": [2.0],
+            "CUSTOMER_ID_AVG_AMOUNT_1DAY_WINDOW": [100.0],
+            "CUSTOMER_ID_NB_TX_7DAY_WINDOW": [7.0],
+            "CUSTOMER_ID_AVG_AMOUNT_7DAY_WINDOW": [80.0],
+            "CUSTOMER_ID_NB_TX_30DAY_WINDOW": [30.0],
+            "CUSTOMER_ID_AVG_AMOUNT_30DAY_WINDOW": [50.0],
+            "TERMINAL_ID_NB_TX_1DAY_WINDOW": [3.0],
+            "TERMINAL_ID_RISK_1DAY_WINDOW": [0.4],
+            "TERMINAL_ID_NB_TX_7DAY_WINDOW": [14.0],
+            "TERMINAL_ID_RISK_7DAY_WINDOW": [0.2],
+            "TERMINAL_ID_NB_TX_30DAY_WINDOW": [30.0],
+            "TERMINAL_ID_RISK_30DAY_WINDOW": [0.1],
+        }
+    )
+    engineered_frame = engineer_transaction_velocity_features(
+        raw_frame,
+        raw_features=TRANSACTION_VELOCITY_RAW_FEATURES,
+        expected_features=TRANSACTION_VELOCITY_MODEL_FEATURES,
+    )
+
+    assert tuple(engineered_frame.columns) == TRANSACTION_VELOCITY_MODEL_FEATURES
+    assert engineered_frame["TERMINAL_RISK_MAX"].item() == pytest.approx(0.4)
+    assert engineered_frame["AMOUNT_X_NIGHT"].item() == 200.0
+    assert engineered_frame["CUSTOMER_AMOUNT_TO_AVG_1D"].item() == (
+        pytest.approx(200.0 / 100.001)
+    )
+
+
+def test_transaction_velocity_contract_rejects_missing_raw_feature() -> None:
+    with pytest.raises(
+        ControlledBenchmarkArtifactError,
+        match="missing: TX_AMOUNT",
+    ):
+        engineer_transaction_velocity_features(
+            pl.DataFrame({"TX_DURING_NIGHT": [1.0]}),
+            raw_features=("TX_AMOUNT", "TX_DURING_NIGHT"),
+            expected_features=("TX_AMOUNT", "TX_DURING_NIGHT"),
+        )
+
+
+def test_transaction_velocity_contract_rejects_non_finite_value() -> None:
+    with pytest.raises(
+        ControlledBenchmarkArtifactError,
+        match="non-finite",
+    ):
+        engineer_transaction_velocity_features(
+            pl.DataFrame({"TX_AMOUNT": [float("inf")]}),
+            raw_features=("TX_AMOUNT",),
+            expected_features=("TX_AMOUNT",),
+        )

@@ -23,15 +23,20 @@ the MCA/NSE pipeline.
 
 ## Result
 
-| Metric | GPU model | Amount-only baseline |
-| --- | ---: | ---: |
-| Temporal PR-AUC | 0.7158 | 0.2516 |
-| Precision at 1% review capacity | 0.6445 | 0.2245 |
-| Recall at 1% review capacity | 0.7220 | 0.2515 |
-| Lift at 1% review capacity | 72.19x | 25.15x |
-| Brier score | 0.00552 | 0.33070 |
+The v2 search compared six fixed XGBoost candidates on validation data only.
+The winning `probability_depth_8` candidate was then evaluated once on the
+temporal test set. It uses 15 raw fields and 11 deterministic transaction,
+customer-velocity, and terminal-risk interaction features.
 
-The model's temporal-test accuracy is 99.36%, but that number is not used for
+| Metric | v2 GPU model | v1 GPU model | Amount-only baseline |
+| --- | ---: | ---: | ---: |
+| Temporal PR-AUC | 0.7593 | 0.7158 | 0.2516 |
+| Precision at 1% review capacity | 0.6724 | 0.6445 | 0.2245 |
+| Recall at 1% review capacity | 0.7533 | 0.7220 | 0.2515 |
+| Lift at 1% review capacity | 75.32x | 72.19x | 25.15x |
+| Brier score | 0.00313 | 0.00552 | 0.33070 |
+
+The model's temporal-test accuracy is 99.64%, but that number is not used for
 selection because the fraud base rate is 0.89%. PR-AUC, precision, recall, lift,
 calibration, and review capacity are the decision metrics.
 
@@ -39,14 +44,19 @@ calibration, and review capacity are the decision metrics.
 
 - Runtime: Google Colab, Tesla T4
 - Python 3.13.15, XGBoost 3.4.1, scikit-learn 1.6.1
-- Best iteration: 320
-- GPU fit time: 8.64 seconds
+- Feature contract: `transaction_velocity_v2`, 15 raw and 26 model features
+- Candidate count: 6
+- Selection policy: validation PR-AUC, then precision at 1% review capacity
+- Winner: depth 8, learning rate 0.05, minimum child weight 3
+- Best iteration: 513
+- Winning GPU fit time: 12.82 seconds
+- Total bounded search time: 86.75 seconds
 - Model SHA-256:
-  `fc79b3263dc192abe3458d0ef0371858d7fc72461708fb5db56a6ff7cb660624`
+  `3c57b090d0e2043b9833b074d4b66c046b0a10df4d0f3324385d7828c653c3ee`
 - Metrics SHA-256:
-  `f8df02cfd4350e6661cf2b124c0647f59939d2413975362507001c39f5e63a6b`
+  `fad62cd02cb5336bae5b23bc5427e760d3b063dd1428469631de2cf84de415ed`
 - Downloaded archive SHA-256:
-  `fa9cd8fab8978ae66a355ae89fc723e58cba822c93b39756302e4fbfd5449309`
+  `34fd62a7b98869d788a2ec9879ef0681bdca57577112a66ae36c907c9fa315bd`
 
 The notebook is [`notebooks/ASSAY.ipynb`](../notebooks/ASSAY.ipynb). Large
 model artifacts stay under ignored `data/generated/` and are not committed.
@@ -57,7 +67,7 @@ model loading with:
 ```bash
 uv sync --extra gpu --locked
 uv run python -m assay.cli.verify_controlled_benchmark \
-  --run-directory data/generated/controlled_benchmark/run-6e3ca5849b46
+  --run-directory data/generated/controlled_benchmark/run-v2-6e3ca5849b46
 ```
 
 The reusable scorer returns only

@@ -135,8 +135,9 @@ does not read raw source data, train models, or calculate merchant scores.
 [`notebooks/ASSAY.ipynb`](notebooks/ASSAY.ipynb) is the Colab training runner
 for the Fraud Detection Handbook simulated transaction benchmark. It pins the
 upstream revision, uses non-random temporal splits with seven-day embargoes,
-trains an XGBoost candidate on a T4, compares it with an amount-only baseline,
-and exports checksummed model and metric artifacts.
+selects among six compute-bounded XGBoost candidates using validation data,
+evaluates the winner once on the temporal test, and exports checksummed model,
+metric, and raw-feature-contract artifacts.
 
 This benchmark proves transaction-fraud model mechanics only. Its labels and
 model must never be mixed with MCA/NSE entity-risk observations or presented as
@@ -150,7 +151,7 @@ Verify a downloaded Colab package before scoring:
 
 ```bash
 uv run python -m assay.cli.verify_controlled_benchmark \
-  --run-directory data/generated/controlled_benchmark/run-6e3ca5849b46
+  --run-directory data/generated/controlled_benchmark/run-v2-6e3ca5849b46
 ```
 
 The resulting `adverse_event` artifacts keep SEBI and other-authority actions

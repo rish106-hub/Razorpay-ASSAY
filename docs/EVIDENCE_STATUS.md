@@ -44,9 +44,11 @@ The read-only API serves this contract and cannot change the training decision.
 ## Controlled benchmark
 
 The isolated Fraud Detection Handbook benchmark trained successfully on a
-Colab T4. Its temporal test PR-AUC is 0.71577, precision at 1% review capacity
-is 0.64452, recall is 0.72202, and lift is 72.19x. The exported XGBoost 3.4.1
-model and feature order were checksum-verified and loaded locally.
+Colab T4. A six-candidate validation-only search selected a 26-feature model.
+Its temporal test PR-AUC is 0.75930, precision at 1% review capacity is 0.67242,
+recall is 0.75328, lift is 75.32x, and Brier score is 0.00313. The exported
+XGBoost 3.4.1 model, raw-to-model feature contract, and checksums were verified
+and exercised locally on CPU.
 
 This benchmark validates transaction-fraud training mechanics only. It is not
 a Razorpay production model and cannot be transferred to MCA/NSE entity risk.
