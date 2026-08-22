@@ -15,15 +15,17 @@ REQUIRED_DIRECTORIES = (
 
 def main() -> int:
     missing = [str(path) for path in REQUIRED_DIRECTORIES if not path.is_dir()]
-    free_gb = shutil.disk_usage(".").free / 1024**3
 
     print(f"Python: {sys.version.split()[0]}")
-    print(f"Free disk: {free_gb:.1f} GB")
     print(f"Directories present: {not missing}")
 
     if missing:
         print("Missing directories:", ", ".join(missing))
         return 1
+
+    raw_store_path = Path("data/raw")
+    free_gb = shutil.disk_usage(raw_store_path).free / 1024**3
+    print(f"Raw-store free disk: {free_gb:.1f} GB")
     if free_gb < MIN_FREE_GB:
         print(f"Need at least {MIN_FREE_GB} GB free before bulk acquisition.")
         return 1
