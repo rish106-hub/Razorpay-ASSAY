@@ -90,7 +90,7 @@ uv run python -m assay.cli.evaluate_signals \
   --observation-report data/generated/signal_observation/<run>.report.json \
   --temporal-holdout-start 2026-01-01 \
   --review-capacity 0.01 \
-  --false-positive-review-cost-inr 100
+  --false-positive-review-cost-inr <measured-inr-cost>
 ```
 
 Evaluation cost is a risk-operations input. Replace the example INR amount

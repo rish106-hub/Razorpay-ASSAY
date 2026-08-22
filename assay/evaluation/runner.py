@@ -36,7 +36,7 @@ class EvaluationRunConfig(BaseModel):
     project_root: Path = Path(__file__).resolve().parents[2]
     generated_report_root: Path = Path("data/generated/evaluation")
     requested_review_capacity: float = Field(default=0.01, gt=0.0, le=1.0)
-    review_cost_inr_per_false_positive: float = Field(default=100.0, ge=0.0)
+    review_cost_inr_per_false_positive: float = Field(ge=0.0)
     geography_holdout_modulus: int = Field(default=5, ge=2, le=20)
     geography_holdout_remainder: int = Field(default=0, ge=0)
     null_simulations: int = Field(default=1_000, ge=100, le=100_000)
@@ -352,4 +352,3 @@ class EvaluationRunner:
             )
             report_file.flush()
             os.fsync(report_file.fileno())
-

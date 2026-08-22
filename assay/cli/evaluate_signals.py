@@ -32,7 +32,12 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--observation-report", type=Path, required=True)
     parser.add_argument("--temporal-holdout-start", type=_iso_date, required=True)
     parser.add_argument("--review-capacity", type=float, default=0.01)
-    parser.add_argument("--false-positive-review-cost-inr", type=float, default=100.0)
+    parser.add_argument(
+        "--false-positive-review-cost-inr",
+        type=float,
+        required=True,
+        help="Measured analyst handling cost per false-positive review.",
+    )
     parser.add_argument("--null-simulations", type=int, default=1_000)
     return parser
 
@@ -79,4 +84,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
