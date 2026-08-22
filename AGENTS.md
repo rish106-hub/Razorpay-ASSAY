@@ -69,10 +69,10 @@ Skip the question only for: one-file typo fixes, doc-only edits, dependency bump
 
 Code is not "ready" until, locally:
 
-1. Typecheck exits 0\.  
+1. If a typechecker is configured for the changed surface, it exits 0; otherwise record `N/A`.
 2. Lint exits 0\.  
 3. Full test suite exits 0\.  
-4. The feature was **exercised in a real browser**, not asserted to work.  
+4. If the change has a browser surface, exercise it in a real browser; otherwise run the relevant non-browser verification and record browser testing as `N/A`.
 5. `git status` is clean \- no stray files, no `.env`, no `.gstack/`, no `context.md`.
 
 Saying "should work" without step 4 is a failure. If you cannot verify, say explicitly that you could not verify and hand back. Never report a task complete on the basis that the code looks correct.
