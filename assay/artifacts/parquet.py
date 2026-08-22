@@ -36,6 +36,28 @@ def sha256_file(artifact_path: Path) -> str:
     return artifact_digest.hexdigest()
 
 
+def verify_parquet_artifact(
+    artifact: ParquetArtifact,
+    project_root: Path,
+) -> Path:
+    """Resolve an artifact and reject missing, resized, or modified bytes."""
+
+    artifact_path = Path(artifact.path)
+    if not artifact_path.is_absolute():
+        artifact_path = project_root / artifact_path
+    if not artifact_path.is_file():
+        raise ImmutableArtifactError(f"Parquet artifact is missing: {artifact_path}.")
+    if artifact_path.stat().st_size != artifact.bytes:
+        raise ImmutableArtifactError(
+            f"Parquet artifact size mismatch: {artifact_path}."
+        )
+    if sha256_file(artifact_path) != artifact.sha256:
+        raise ImmutableArtifactError(
+            f"Parquet artifact checksum mismatch: {artifact_path}."
+        )
+    return artifact_path
+
+
 def write_immutable_parquet(
     frame: pl.DataFrame,
     artifact_path: Path,

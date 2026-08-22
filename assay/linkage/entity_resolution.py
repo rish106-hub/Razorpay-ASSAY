@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from assay.artifacts.parquet import (
     ParquetArtifact,
     sha256_file,
+    verify_parquet_artifact,
     write_immutable_parquet,
 )
 from assay.canonicalisation.mca import McaCanonicalisationReport
@@ -353,7 +354,9 @@ class EntityLinker:
 
         company_frame = pl.concat(
             [
-                pl.scan_parquet(self._verified_artifact_path(part)).select(
+                pl.scan_parquet(
+                    verify_parquet_artifact(part, self._config.project_root)
+                ).select(
                     "company_snapshot_id",
                     "cin",
                     "company_name",
@@ -364,7 +367,9 @@ class EntityLinker:
         ).collect(engine="streaming")
         adverse_frame = pl.concat(
             [
-                pl.scan_parquet(self._verified_artifact_path(part)).select(
+                pl.scan_parquet(
+                    verify_parquet_artifact(part, self._config.project_root)
+                ).select(
                     "adverse_event_id",
                     "cin_candidate",
                     "entity_name_normalized_strict",
@@ -448,20 +453,6 @@ class EntityLinker:
         if configured_path.is_absolute():
             return configured_path
         return self._config.project_root / configured_path
-
-    def _verified_artifact_path(self, artifact: ParquetArtifact) -> Path:
-        artifact_path = self._resolve(Path(artifact.path))
-        if not artifact_path.is_file():
-            raise EntityLinkageError(f"Canonical artifact is missing: {artifact_path}.")
-        if artifact_path.stat().st_size != artifact.bytes:
-            raise EntityLinkageError(
-                f"Canonical artifact size mismatch: {artifact_path}."
-            )
-        if sha256_file(artifact_path) != artifact.sha256:
-            raise EntityLinkageError(
-                f"Canonical artifact checksum mismatch: {artifact_path}."
-            )
-        return artifact_path
 
     @staticmethod
     def _published_artifact(
