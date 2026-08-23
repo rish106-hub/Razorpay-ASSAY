@@ -287,7 +287,6 @@ class SolvencyModelPackage:
             )
         return score_series
 
-
     def score_with_contributions(
         self,
         merchant_feature_frame: pl.DataFrame,
