@@ -17,6 +17,10 @@ from assay.artifacts.parquet import (
     write_immutable_parquet,
 )
 from assay.contracts.identifiers import INDIAN_CIN_PATTERN
+from assay.contracts.names import (
+    legal_name_expression,
+    strict_name_expression,
+)
 from assay.contracts.provenance import MerchantRiskAsset, load_and_validate_manifests
 
 NSE_ADVERSE_EVENT_SCHEMA_VERSION = "1.1.0"
@@ -72,17 +76,6 @@ class NseCanonicalisationReport(BaseModel):
     parts: tuple[ParquetArtifact, ...]
 
 
-def _normalised_name_expression(source_column: str) -> pl.Expr:
-    return (
-        pl.col(source_column)
-        .fill_null("")
-        .str.to_uppercase()
-        .str.replace_all(r"[^A-Z0-9]+", " ")
-        .str.replace_all(r"\s+", " ")
-        .str.strip_chars()
-    )
-
-
 def _canonicalise_adverse_frame(
     source_frame: pl.DataFrame,
     asset: MerchantRiskAsset,
@@ -97,14 +90,8 @@ def _canonicalise_adverse_frame(
     pan_normalized = (
         pl.col("PAN").fill_null("").str.strip_chars().str.to_uppercase()
     )
-    strict_entity_name = _normalised_name_expression("Entity / Individual Name")
-    legal_entity_name = (
-        strict_entity_name.str.replace_all(
-            r"\b(PRIVATE|PVT|LIMITED|LTD|LLP|COMPANY|CO)\b", " "
-        )
-        .str.replace_all(r"\s+", " ")
-        .str.strip_chars()
-    )
+    strict_entity_name = strict_name_expression("Entity / Individual Name")
+    legal_entity_name = legal_name_expression(strict_entity_name)
     source_authority = (
         "SEBI"
         if asset.source_id == "nse_sebi_debarred"

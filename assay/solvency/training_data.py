@@ -44,6 +44,46 @@ SOLVENCY_MODEL_FEATURES = (
 )
 
 
+SOLVENCY_FEATURE_SOURCE_COLUMNS = (
+    "company_age_days",
+    "log_authorised_capital_inr",
+    "log_paid_up_capital_inr",
+    "paid_to_authorised_capital_ratio",
+    "shared_address_company_count",
+    "address_registration_month_company_count",
+    *SOLVENCY_CATEGORICAL_FEATURES,
+)
+
+
+def solvency_feature_expressions() -> tuple[pl.Expr, ...]:
+    """Return the single frozen train-and-serve feature derivation."""
+
+    return (
+        (pl.col("company_age_days") / 365.25)
+        .cast(pl.Float32)
+        .alias("company_age_years"),
+        pl.col("paid_to_authorised_capital_ratio")
+        .clip(0.0, 10.0)
+        .cast(pl.Float32),
+        pl.col("shared_address_company_count")
+        .cast(pl.Float64)
+        .log1p()
+        .cast(pl.Float32)
+        .alias("log_shared_address_company_count"),
+        pl.col("address_registration_month_company_count")
+        .cast(pl.Float64)
+        .log1p()
+        .cast(pl.Float32)
+        .alias("log_address_registration_month_company_count"),
+        pl.col("log_authorised_capital_inr").cast(pl.Float32),
+        pl.col("log_paid_up_capital_inr").cast(pl.Float32),
+        *[
+            pl.col(feature_name).fill_null("UNKNOWN").cast(pl.String)
+            for feature_name in SOLVENCY_CATEGORICAL_FEATURES
+        ],
+    )
+
+
 class SolvencyTrainingDataError(RuntimeError):
     """A frozen solvency modeling dataset failed its split contract."""
 
@@ -157,28 +197,7 @@ def build_solvency_model_data(
         .otherwise(pl.lit("training"))
     )
     return eligible_frame.with_columns(
-        (pl.col("company_age_days") / 365.25)
-        .cast(pl.Float32)
-        .alias("company_age_years"),
-        pl.col("paid_to_authorised_capital_ratio")
-        .clip(0.0, 10.0)
-        .cast(pl.Float32),
-        pl.col("shared_address_company_count")
-        .cast(pl.Float64)
-        .log1p()
-        .cast(pl.Float32)
-        .alias("log_shared_address_company_count"),
-        pl.col("address_registration_month_company_count")
-        .cast(pl.Float64)
-        .log1p()
-        .cast(pl.Float32)
-        .alias("log_address_registration_month_company_count"),
-        pl.col("log_authorised_capital_inr").cast(pl.Float32),
-        pl.col("log_paid_up_capital_inr").cast(pl.Float32),
-        *[
-            pl.col(feature_name).fill_null("UNKNOWN").cast(pl.String)
-            for feature_name in SOLVENCY_CATEGORICAL_FEATURES
-        ],
+        *solvency_feature_expressions(),
         target.cast(pl.Int8).alias("target"),
         split.alias("dataset_split"),
     ).select(
