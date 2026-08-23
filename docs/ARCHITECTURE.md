@@ -62,7 +62,7 @@ Canonical tables carry `source_id`, `source_record_id`, `source_file_sha256`, `s
 
 | Table | Grain | Decision it supports |
 | --- | --- | --- |
-| `company_snapshot` | one MCA company record per CIN and source snapshot | Eligible entity population and leakage-safe temporal cohorts |
+| `company_snapshot` | one MCA legal entity per CIN, LLPIN, or FCRN and source snapshot | Eligible entity population and leakage-safe temporal cohorts |
 | `company_address_snapshot` | one normalised address per company and source snapshot | As-of address groups without treating reuse as a label |
 | `adverse_event` | one regulatory row from NSE | Narrow, sourced outcome target |
 | `entity_match` | one MCA-to-NSE candidate match | Label coverage and false-match audit |
@@ -74,6 +74,12 @@ Canonical tables carry `source_id`, `source_record_id`, `source_file_sha256`, `s
 Company and address snapshots are append-only. As-of features may use only a snapshot whose `snapshot_as_of` precedes the feature cutoff. When a source does not provide effective validity, `valid_from` and `valid_to` remain null and the pipeline must not claim that the fact was valid between snapshots.
 
 No table stores a generic `fraud_label`. Features cannot use data after their outcome window begins, and mutable overwrites never hide a previous source or evaluation run.
+
+The IBBI path is a separate model family. It joins exact CINs only, excludes
+companies with CIRP announcements before the feature cutoff, and names its
+target `cirp_public_announcement_outcome`. Its model package contains a
+portable preprocessing contract and an XGBoost booster. It does not enter the
+NSE regulatory verdict path and cannot produce a generic merchant fraud score.
 
 ## Matching policy
 

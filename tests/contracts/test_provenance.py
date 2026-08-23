@@ -40,5 +40,10 @@ def test_unknown_terms_cannot_be_marked_provenance_complete() -> None:
                 "local_path": "data/raw/source.csv",
                 "sha256": "a" * 64,
                 "bytes": 1,
+                "format": "csv",
+                "status": "schema_validated",
+                "sheet": "not_applicable",
+                "rows": 1,
+                "columns": ["merchant_id"],
             }
         )

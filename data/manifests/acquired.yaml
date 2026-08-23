@@ -1,16 +1,55 @@
 assets:
+  - id: ibbi_cirp_public_announcements_2026_08_22
+    source_id: ibbi_cirp_public_announcements
+    source_url: https://ibbi.gov.in/public-announcement?ann=Public%20Announcement%20of%20Corporate%20Insolvency%20Resolution%20Process&title=&date=&export_excel=export_excel
+    publisher: Insolvency and Bankruptcy Board of India
+    retrieved_at: '2026-08-22T20:58:00+05:30'
+    extract_date: '2026-08-21'
+    licence_or_terms: unknown_IBBI_website_reuse_terms
+    intended_use: merchant_solvency_outcome_validation
+    restrictions:
+      - insolvency_is_not_fraud_ground_truth
+      - announcement_date_is_the_public_observation_date
+      - malformed_rows_must_be_quarantined
+      - raw_file_not_redistributed_from_repository
+      - publisher_terms_clearance_required_for_redistribution
+    provenance_status: incomplete
+    local_path: data/raw/ibbi/cirp_public_announcements.tsv
+    sha256: 9538cd116ffb3cb47313cfb3fb5883cba39819916c0a25d7247a8ac4fd7df8b6
+    bytes: 2867921
+    format: tsv_export_with_xlsx_response_name
+    status: schema_audited
+    sheet: tab_separated_export
+    rows: 9067
+    columns:
+      - Announcement Type
+      - Date of Announcement
+      - Last date of Submission
+      - Name of Corporate Debtor
+      - CIN No.
+      - Name of Applicant
+      - Name of Insolvency Professional
+      - Address of Insolvency Professional
+      - Remarks
+    interpretation: cirp_public_announcement_outcome_not_fraud_label
+
   - id: nse_sebi_debarred_2026_08_22
     source_id: nse_sebi_debarred
     source_url: https://nsearchives.nseindia.com/content/press/prs_ra_sebi.xls
     publisher: National Stock Exchange of India Limited
     retrieved_at: '2026-08-22T15:28:00+05:30'
     extract_date: unknown
-    licence_or_terms: unknown_source_specific_terms
+    licence_or_terms: NSE_website_terms_source_specific_no_redistribution_grant
+    terms_url: https://www.nseindia.com/static/nse-terms-of-use
+    data_policy_url: https://www.nseindia.com/static/market-data/nse-data-policy
+    publisher_page_updated_at: '2025-08-07'
     intended_use: external_adverse_outcome_validation
     restrictions:
       - debarment_is_not_fraud_ground_truth
       - match_quality_audit_required
       - raw_file_not_redistributed_from_repository
+      - publisher_permission_required_for_redistribution
+      - research_use_only_until_terms_are_cleared
     provenance_status: incomplete
     local_path: data/raw/nse_sebi_debarred.xls
     sha256: 09795988511808cb636d48edf5a92a6e4bfe6c39a160965dd16515a127452753
@@ -25,7 +64,7 @@ assets:
       - Entity / Individual Name
       - PAN
       - DIN / CIN
-      - Symbol
+      - "Symbol "
       - Period
     interpretation: adverse_regulatory_outcome_not_fraud_label
 
@@ -35,12 +74,17 @@ assets:
     publisher: National Stock Exchange of India Limited
     retrieved_at: '2026-08-22T15:28:00+05:30'
     extract_date: unknown
-    licence_or_terms: unknown_source_specific_terms
+    licence_or_terms: NSE_website_terms_source_specific_no_redistribution_grant
+    terms_url: https://www.nseindia.com/static/nse-terms-of-use
+    data_policy_url: https://www.nseindia.com/static/market-data/nse-data-policy
+    publisher_page_updated_at: '2025-08-07'
     intended_use: external_adverse_outcome_validation
     restrictions:
       - adverse_action_is_not_fraud_ground_truth
       - match_quality_audit_required
       - raw_file_not_redistributed_from_repository
+      - publisher_permission_required_for_redistribution
+      - research_use_only_until_terms_are_cleared
     provenance_status: incomplete
     local_path: data/raw/nse_other_authorities_debarred.xls
     sha256: 6d7a36ca58298f9cd3b622fb88464cc5330fbb5666925b0a4108a53c596c1f14
@@ -55,6 +99,6 @@ assets:
       - Entity / Individual Name
       - PAN
       - DIN / CIN
-      - Symbol
+      - "Symbol "
       - Period
     interpretation: adverse_regulatory_outcome_not_fraud_label

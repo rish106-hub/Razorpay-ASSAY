@@ -1,0 +1,1 @@
+"""Merchant-solvency contract tests."""

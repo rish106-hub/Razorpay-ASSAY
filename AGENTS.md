@@ -51,19 +51,20 @@ Skip the question only for: one-file typo fixes, doc-only edits, dependency bump
 | Task | Command |
 | ----- | ----- |
 | Install | `uv sync --locked` |
-| Dev server | `N/A - backend/data pipeline only until the evidence report layer exists` |
+| Dev server | `uv run uvicorn assay.api.app:app --host 127.0.0.1 --port 8000` |
 | Test (all) | `uv run python -m pytest` |
 | Test (single file) | `uv run python -m pytest path/to/test_file.py` |
 | Lint | `uv run python -m ruff check .` |
-| Typecheck | `N/A - no mypy/pyright config yet; add before typed application modules expand` |
-| Build | `N/A - no packaged app yet; generated reports are pipeline artifacts` |
+| Typecheck | `uv run python -m mypy assay` |
+| Build | `uv lock --check` |
 | DB migrate | `N/A - DuckDB is the local query engine, not a migration-managed service` |
 | DB reset / seed | `N/A - use immutable raw inputs and regenerated Parquet artifacts` |
 
 * Package manager: **uv 0.11.30 with `pyproject.toml` and generated `uv.lock`** \- DO NOT use any other one until this file changes.
 * Runtime \+ version: **Python 3.12**  
 * Env vars required for tests to pass: **none**. `DATA_GOV_IN_API_KEY` is required only for live MCA acquisition.  
-* Services that must be running locally: **none**.
+* Services that must be running locally: **none**. The API requires
+  `ASSAY_EVIDENCE_REPORT_PATH` only when serving a generated report.
 
 ## **\#3. DEFINITION OF DONE**
 
