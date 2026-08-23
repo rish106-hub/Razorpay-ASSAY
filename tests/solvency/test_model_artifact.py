@@ -13,24 +13,41 @@ from assay.solvency.artifact import (
     SolvencyModelArtifactError,
     load_solvency_model_package,
 )
-from assay.solvency.model_training import build_population_restoration_weights
-from assay.solvency.training_data import (
-    SOLVENCY_CATEGORICAL_FEATURES,
-    SOLVENCY_MODEL_FEATURES,
-    SOLVENCY_NUMERIC_FEATURES,
+from assay.solvency.feature_sets import (
+    BASELINE_NO_STATUS,
+    BASELINE_WITH_STATUS,
+    SolvencyFeatureSet,
 )
+from assay.solvency.model_training import build_population_restoration_weights
+from assay.solvency.training_data import SOLVENCY_MODEL_FEATURES
+
+FROZEN_COLAB_PACKAGE = Path("data/generated/solvency_model/run-67e0cc4f177e35f4")
 
 
-def _write_package(run_directory: Path) -> None:
+def _write_package(
+    run_directory: Path,
+    *,
+    feature_set: SolvencyFeatureSet = BASELINE_WITH_STATUS,
+    metrics_feature_set_name: str | None = None,
+    preprocessor_feature_set_name: str | None = None,
+) -> None:
+    """Write one checksum-valid package for the named feature contract.
+
+    A `None` feature-set name omits the key entirely, which is how every
+    artifact exported before the feature-set contract existed looks on disk.
+    """
+
+    numeric_features = feature_set.numeric_features
+    categorical_features = feature_set.categorical_features
     metrics = {
         "schema_version": "1.0.0",
         "model_family": "merchant_solvency_cirp_public_announcement",
         "label_boundary": "cirp_public_announcement_outcome_not_fraud",
         "fit_payload_sha256": "a" * 64,
         "random_seed": 106,
-        "model_features": SOLVENCY_MODEL_FEATURES,
-        "numeric_features": SOLVENCY_NUMERIC_FEATURES,
-        "categorical_features": SOLVENCY_CATEGORICAL_FEATURES,
+        "model_features": feature_set.model_features,
+        "numeric_features": numeric_features,
+        "categorical_features": categorical_features,
         "selection_rule": "validation_pr_auc",
         "winner": {
             "name": "depth_4_regularised",
@@ -38,24 +55,23 @@ def _write_package(run_directory: Path) -> None:
             "validation_weighted_pr_auc": 0.7,
         },
     }
+    if metrics_feature_set_name is not None:
+        metrics["feature_set_name"] = metrics_feature_set_name
     preprocessor = {
         "schema_version": "1.0.0",
-        "numeric_features": SOLVENCY_NUMERIC_FEATURES,
-        "numeric_medians": [1.0] * len(SOLVENCY_NUMERIC_FEATURES),
-        "categorical_features": SOLVENCY_CATEGORICAL_FEATURES,
-        "categorical_imputer_values": ["UNKNOWN"]
-        * len(SOLVENCY_CATEGORICAL_FEATURES),
-        "categories": [["KNOWN", "RARE"]]
-        * len(SOLVENCY_CATEGORICAL_FEATURES),
-        "infrequent_categories": [["RARE"]]
-        * len(SOLVENCY_CATEGORICAL_FEATURES),
+        "numeric_features": numeric_features,
+        "numeric_medians": [1.0] * len(numeric_features),
+        "categorical_features": categorical_features,
+        "categorical_imputer_values": ["UNKNOWN"] * len(categorical_features),
+        "categories": [["KNOWN", "RARE"]] * len(categorical_features),
+        "infrequent_categories": [["RARE"]] * len(categorical_features),
         "handle_unknown": "ignore",
         "min_frequency": 10,
         "transformed_feature_names": [
-            *[f"numeric__{name}" for name in SOLVENCY_NUMERIC_FEATURES],
+            *[f"numeric__{name}" for name in numeric_features],
             *[
                 encoded
-                for feature in SOLVENCY_CATEGORICAL_FEATURES
+                for feature in categorical_features
                 for encoded in (
                     f"categorical__{feature}_KNOWN",
                     f"categorical__{feature}_infrequent_sklearn",
@@ -64,6 +80,8 @@ def _write_package(run_directory: Path) -> None:
         ],
         "label_boundary": "cirp_public_announcement_outcome_not_fraud",
     }
+    if preprocessor_feature_set_name is not None:
+        preprocessor["feature_set_name"] = preprocessor_feature_set_name
     artifacts = {
         "selection_metrics.json": json.dumps(metrics, sort_keys=True).encode(),
         "portable_preprocessor.json": json.dumps(
@@ -92,6 +110,93 @@ def test_load_solvency_model_package_verifies_portable_contract(
     assert package.report.raw_feature_count == 15
     assert package.report.transformed_feature_count == 24
     assert package.report.model_loaded is False
+
+
+def test_package_without_a_feature_set_name_defaults_to_the_baseline(
+    tmp_path: Path,
+) -> None:
+    """Artifacts frozen before the contract existed must keep loading."""
+
+    _write_package(tmp_path)
+
+    package = load_solvency_model_package(tmp_path, load_model=False)
+
+    assert package.preprocessor.feature_set_name == "baseline_with_status"
+    assert package.metrics.feature_set_name == "baseline_with_status"
+    assert package.report.feature_set_name == "baseline_with_status"
+
+
+@pytest.mark.skipif(
+    not (FROZEN_COLAB_PACKAGE / "manifest.json").is_file(),
+    reason="The frozen Colab model package is gitignored and not present.",
+)
+def test_frozen_colab_package_still_loads_under_the_feature_set_contract() -> None:
+    package = load_solvency_model_package(FROZEN_COLAB_PACKAGE, load_model=False)
+
+    assert package.report.feature_set_name == "baseline_with_status"
+    assert package.metrics.model_features == SOLVENCY_MODEL_FEATURES
+
+
+def test_load_solvency_model_package_accepts_the_no_status_feature_set(
+    tmp_path: Path,
+) -> None:
+    _write_package(
+        tmp_path,
+        feature_set=BASELINE_NO_STATUS,
+        metrics_feature_set_name="baseline_no_status",
+        preprocessor_feature_set_name="baseline_no_status",
+    )
+
+    package = load_solvency_model_package(tmp_path, load_model=False)
+
+    assert package.report.feature_set_name == "baseline_no_status"
+    assert package.report.raw_feature_count == 14
+    assert "company_status" not in package.metrics.model_features
+
+
+def test_load_solvency_model_package_rejects_disagreeing_feature_sets(
+    tmp_path: Path,
+) -> None:
+    _write_package(
+        tmp_path,
+        feature_set=BASELINE_NO_STATUS,
+        metrics_feature_set_name="baseline_with_status",
+        preprocessor_feature_set_name="baseline_no_status",
+    )
+
+    with pytest.raises(SolvencyModelArtifactError, match="feature sets differ"):
+        load_solvency_model_package(tmp_path, load_model=False)
+
+
+def test_load_solvency_model_package_rejects_an_unknown_feature_set(
+    tmp_path: Path,
+) -> None:
+    _write_package(
+        tmp_path,
+        metrics_feature_set_name="baseline_invented",
+        preprocessor_feature_set_name="baseline_invented",
+    )
+
+    with pytest.raises(
+        SolvencyModelArtifactError, match="Unknown solvency feature set"
+    ):
+        load_solvency_model_package(tmp_path, load_model=False)
+
+
+def test_load_solvency_model_package_rejects_a_mismatched_column_list(
+    tmp_path: Path,
+) -> None:
+    _write_package(
+        tmp_path,
+        feature_set=BASELINE_NO_STATUS,
+        metrics_feature_set_name="baseline_with_status",
+        preprocessor_feature_set_name="baseline_with_status",
+    )
+
+    with pytest.raises(
+        SolvencyModelArtifactError, match="invalid for baseline_with_status"
+    ):
+        load_solvency_model_package(tmp_path, load_model=False)
 
 
 def test_load_solvency_model_package_rejects_tampered_model(

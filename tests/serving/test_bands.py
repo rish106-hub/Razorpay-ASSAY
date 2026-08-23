@@ -10,6 +10,7 @@ from assay.serving.bands import (
     RiskBandScale,
 )
 from assay.solvency.evaluation import (
+    SOLVENCY_HOLDOUT_EVALUATION_SCHEMA_VERSION,
     SolvencyHoldoutEvaluationReport,
     SolvencyReviewCapacityMetrics,
     SolvencySplitMetrics,
@@ -174,7 +175,10 @@ def test_missing_review_capacity_is_rejected_by_fraction() -> None:
 def test_report_without_score_thresholds_asks_for_regeneration() -> None:
     report = _report((_legacy_capacity(0.001), _legacy_capacity(0.005)))
 
-    with pytest.raises(RiskBandError, match="schema 1.1.0"):
+    with pytest.raises(
+        RiskBandError,
+        match=f"schema {SOLVENCY_HOLDOUT_EVALUATION_SCHEMA_VERSION}",
+    ):
         RiskBandScale.from_evaluation(report)
 
 

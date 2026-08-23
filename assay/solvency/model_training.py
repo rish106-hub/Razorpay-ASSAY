@@ -24,10 +24,11 @@ from sklearn.preprocessing import OneHotEncoder
 
 from assay.artifacts.parquet import sha256_file
 from assay.solvency.artifact import SOLVENCY_MODEL_CLAIM_BOUNDARY
-from assay.solvency.training_data import (
-    SOLVENCY_CATEGORICAL_FEATURES,
-    SOLVENCY_MODEL_FEATURES,
-    SOLVENCY_NUMERIC_FEATURES,
+from assay.solvency.feature_sets import (
+    DEFAULT_SOLVENCY_FEATURE_SET_NAME,
+    SOLVENCY_FEATURE_SET_SCHEMA_VERSION,
+    SolvencyFeatureSet,
+    resolve_feature_set,
 )
 
 
@@ -59,6 +60,7 @@ class SolvencyModelTrainingConfig(BaseModel):
     expected_training_positive_rows: int = 964
     expected_validation_positive_rows: int = 233
     device: str = "cuda"
+    feature_set_name: str = DEFAULT_SOLVENCY_FEATURE_SET_NAME
     candidates: tuple[SolvencyCandidateConfig, ...] = (
         SolvencyCandidateConfig(
             name="depth_4_regularised", max_depth=4, min_child_weight=5
@@ -91,15 +93,17 @@ def build_population_restoration_weights(
     return np.where(targets == 1, 1.0, negative_weight).astype(np.float64)
 
 
-def build_solvency_preprocessor() -> ColumnTransformer:
-    """Create the frozen numeric and categorical feature transformer."""
+def build_solvency_preprocessor(
+    feature_set: SolvencyFeatureSet,
+) -> ColumnTransformer:
+    """Create the numeric and categorical transformer for one named set."""
 
     return ColumnTransformer(
         transformers=[
             (
                 "numeric",
                 SimpleImputer(strategy="median"),
-                list(SOLVENCY_NUMERIC_FEATURES),
+                list(feature_set.numeric_features),
             ),
             (
                 "categorical",
@@ -116,14 +120,17 @@ def build_solvency_preprocessor() -> ColumnTransformer:
                         ),
                     ]
                 ),
-                list(SOLVENCY_CATEGORICAL_FEATURES),
+                list(feature_set.categorical_features),
             ),
         ],
         sparse_threshold=0.1,
     )
 
 
-def portable_preprocessor_payload(preprocessor: ColumnTransformer) -> dict[str, Any]:
+def portable_preprocessor_payload(
+    preprocessor: ColumnTransformer,
+    feature_set: SolvencyFeatureSet,
+) -> dict[str, Any]:
     """Export sklearn preprocessing as a version-neutral JSON contract."""
 
     numeric_imputer = preprocessor.named_transformers_["numeric"]
@@ -142,11 +149,13 @@ def portable_preprocessor_payload(preprocessor: ColumnTransformer) -> dict[str, 
         )
     return {
         "schema_version": "1.0.0",
-        "numeric_features": SOLVENCY_NUMERIC_FEATURES,
+        "feature_set_name": feature_set.name,
+        "feature_set_schema_version": SOLVENCY_FEATURE_SET_SCHEMA_VERSION,
+        "numeric_features": feature_set.numeric_features,
         "numeric_medians": [
             float(value) for value in numeric_imputer.statistics_
         ],
-        "categorical_features": SOLVENCY_CATEGORICAL_FEATURES,
+        "categorical_features": feature_set.categorical_features,
         "categorical_imputer_values": [
             str(value) for value in categorical_imputer.statistics_
         ],
@@ -203,6 +212,7 @@ def train_solvency_model(config: SolvencyModelTrainingConfig) -> dict[str, Any]:
         raise SolvencyModelTrainingError("Solvency fit-data checksum mismatch.")
     random.seed(config.random_seed)
     np.random.seed(config.random_seed)
+    feature_set = resolve_feature_set(config.feature_set_name)
     frame = pd.read_parquet(config.fit_data_path)
     training = frame.loc[frame["dataset_split"].eq("training")].copy()
     validation = frame.loc[frame["dataset_split"].eq("validation")].copy()
@@ -210,12 +220,12 @@ def train_solvency_model(config: SolvencyModelTrainingConfig) -> dict[str, Any]:
         raise SolvencyModelTrainingError("Unexpected training-positive count.")
     if int(validation["target"].sum()) != config.expected_validation_positive_rows:
         raise SolvencyModelTrainingError("Unexpected validation-positive count.")
-    preprocessor = build_solvency_preprocessor()
+    preprocessor = build_solvency_preprocessor(feature_set)
     training_features = preprocessor.fit_transform(
-        training[list(SOLVENCY_MODEL_FEATURES)]
+        training[list(feature_set.model_features)]
     )
     validation_features = preprocessor.transform(
-        validation[list(SOLVENCY_MODEL_FEATURES)]
+        validation[list(feature_set.model_features)]
     )
     training_targets = training["target"].to_numpy(dtype=np.int8)
     validation_targets = validation["target"].to_numpy(dtype=np.int8)
@@ -314,7 +324,11 @@ def train_solvency_model(config: SolvencyModelTrainingConfig) -> dict[str, Any]:
         compress=3,
     )
     (config.output_directory / "portable_preprocessor.json").write_text(
-        json.dumps(portable_preprocessor_payload(preprocessor), indent=2, sort_keys=True)
+        json.dumps(
+            portable_preprocessor_payload(preprocessor, feature_set),
+            indent=2,
+            sort_keys=True,
+        )
     )
     metrics = {
         "schema_version": "1.0.0",
@@ -322,9 +336,11 @@ def train_solvency_model(config: SolvencyModelTrainingConfig) -> dict[str, Any]:
         "label_boundary": SOLVENCY_MODEL_CLAIM_BOUNDARY,
         "fit_payload_sha256": config.expected_fit_sha256,
         "random_seed": config.random_seed,
-        "model_features": SOLVENCY_MODEL_FEATURES,
-        "numeric_features": SOLVENCY_NUMERIC_FEATURES,
-        "categorical_features": SOLVENCY_CATEGORICAL_FEATURES,
+        "feature_set_name": feature_set.name,
+        "feature_set_schema_version": SOLVENCY_FEATURE_SET_SCHEMA_VERSION,
+        "model_features": feature_set.model_features,
+        "numeric_features": feature_set.numeric_features,
+        "categorical_features": feature_set.categorical_features,
         "selection_rule": (
             "maximum_weighted_validation_pr_auc_then_precision_at_0_1pct_capacity"
         ),

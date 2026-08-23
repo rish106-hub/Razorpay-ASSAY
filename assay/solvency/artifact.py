@@ -13,10 +13,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from scipy import sparse
 
 from assay.artifacts.parquet import sha256_file
-from assay.solvency.training_data import (
-    SOLVENCY_CATEGORICAL_FEATURES,
-    SOLVENCY_MODEL_FEATURES,
-    SOLVENCY_NUMERIC_FEATURES,
+from assay.solvency.feature_sets import (
+    DEFAULT_SOLVENCY_FEATURE_SET_NAME,
+    SolvencyFeatureSetError,
+    resolve_feature_set,
 )
 
 SOLVENCY_MODEL_CLAIM_BOUNDARY = "cirp_public_announcement_outcome_not_fraud"
@@ -62,6 +62,7 @@ class SolvencySelectionMetrics(BaseModel):
     label_boundary: str
     fit_payload_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     random_seed: int = Field(ge=0)
+    feature_set_name: str = DEFAULT_SOLVENCY_FEATURE_SET_NAME
     model_features: tuple[str, ...]
     numeric_features: tuple[str, ...]
     categorical_features: tuple[str, ...]
@@ -75,6 +76,7 @@ class PortableSolvencyPreprocessor(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     schema_version: str
+    feature_set_name: str = DEFAULT_SOLVENCY_FEATURE_SET_NAME
     numeric_features: tuple[str, ...]
     numeric_medians: tuple[float, ...]
     categorical_features: tuple[str, ...]
@@ -205,6 +207,7 @@ class SolvencyModelArtifactReport(BaseModel):
     schema_version: str
     label_boundary: str
     model_family: str
+    feature_set_name: str
     selected_candidate: str
     validation_weighted_pr_auc: float
     raw_feature_count: int = Field(gt=0)
@@ -242,6 +245,7 @@ class SolvencyModelPackage:
             schema_version=self.metrics.schema_version,
             label_boundary=self.metrics.label_boundary,
             model_family=self.metrics.model_family,
+            feature_set_name=self.metrics.feature_set_name,
             selected_candidate=self.metrics.winner.name,
             validation_weighted_pr_auc=(
                 self.metrics.winner.validation_weighted_pr_auc
@@ -406,17 +410,26 @@ def load_solvency_model_package(
         raise SolvencyModelArtifactError(
             "Solvency preprocessing and selection claim boundaries differ."
         )
-    if metrics.model_features != SOLVENCY_MODEL_FEATURES:
+    if metrics.feature_set_name != preprocessor.feature_set_name:
         raise SolvencyModelArtifactError(
-            "Solvency model feature contract is invalid."
+            "Solvency preprocessing and selection feature sets differ."
         )
-    if metrics.numeric_features != SOLVENCY_NUMERIC_FEATURES:
+    try:
+        feature_set = resolve_feature_set(preprocessor.feature_set_name)
+    except SolvencyFeatureSetError as error:
+        raise SolvencyModelArtifactError(str(error)) from error
+    if metrics.model_features != feature_set.model_features:
         raise SolvencyModelArtifactError(
-            "Solvency numeric feature contract is invalid."
+            f"Solvency model feature contract is invalid for {feature_set.name}."
         )
-    if metrics.categorical_features != SOLVENCY_CATEGORICAL_FEATURES:
+    if metrics.numeric_features != feature_set.numeric_features:
         raise SolvencyModelArtifactError(
-            "Solvency categorical feature contract is invalid."
+            f"Solvency numeric feature contract is invalid for {feature_set.name}."
+        )
+    if metrics.categorical_features != feature_set.categorical_features:
+        raise SolvencyModelArtifactError(
+            "Solvency categorical feature contract is invalid for "
+            f"{feature_set.name}."
         )
     if preprocessor.numeric_features != metrics.numeric_features:
         raise SolvencyModelArtifactError(

@@ -36,12 +36,31 @@ and 408 in the prospective 2026 temporal slice. All three counts clear the
 predeclared minimum of 20, so the separate solvency target is `READY_TO_TRAIN`.
 
 The compute-bounded Colab run selected a depth-4 XGBoost model at iteration
-265 using weighted validation PR-AUC. The unseen-geography holdout contains
-593,478 unsampled companies and 298 outcomes. Its PR-AUC is 0.49491; precision
-at 0.1% review capacity is 0.28620, recall is 0.57047, and lift is 569.97x.
-The prospective temporal holdout contains 296,955 unsampled companies and 328
-outcomes. Its PR-AUC is 0.34280; precision at 0.1% review capacity is 0.37710,
-recall is 0.34146, and lift is 341.41x. See `docs/SOLVENCY_MODEL.md`.
+265 using weighted validation PR-AUC. That fit is the `baseline_with_status`
+feature set and its published numbers are a **contaminated baseline**, not a
+discovered signal. The unseen-geography holdout contains 593,478 unsampled
+companies and 298 outcomes; its PR-AUC is 0.49491, precision at 0.1% review
+capacity is 0.28620, recall is 0.57047, and lift is 569.97x. The prospective
+temporal holdout contains 296,955 unsampled companies and 328 outcomes; its
+PR-AUC is 0.34280, precision at 0.1% review capacity is 0.37710, recall is
+0.34146, and lift is 341.41x.
+
+`company_status` supplies 71.28% of that model's total XGBoost gain, and
+`company_status == "Under CIRP"` — the company already inside insolvency
+resolution at the cutoff — alone supplies 112 of the 296 temporal review slots,
+which is the entire reported temporal precision.
+
+The `baseline_no_status` refit drops that one column, keeps the same pinned fit
+artifact, seed, and validation-only selection rule, and was scored once on the
+same full unsampled holdouts. Geography PR-AUC falls to 0.00815 with 1.18%
+precision and 2.35% recall at 0.1% capacity. Temporal PR-AUC falls to 0.01602
+with 3.03% precision and 2.74% recall. ROC-AUC stays at 0.89384 and 0.90867 and
+lift stays between 18.71x and 30.87x, so the remaining fourteen public features
+carry real but weak signal.
+
+On companies that were `Active` at the cutoff — 101 of 298 geography positives
+and 215 of 328 temporal positives — both models score PR-AUC below 0.013. That
+slice is the actual open problem. See `docs/SOLVENCY_MODEL.md`.
 
 The model decision is `EVALUATED_NOT_PRODUCTION_READY`. It remains blocked on
 IBBI reuse clearance, real merchant/payment telemetry, measured false-positive

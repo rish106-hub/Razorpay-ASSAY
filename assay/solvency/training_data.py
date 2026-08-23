@@ -16,32 +16,18 @@ from assay.artifacts.parquet import (
     verify_parquet_artifact,
     write_immutable_parquet,
 )
+from assay.solvency.feature_sets import BASELINE_WITH_STATUS
 from assay.solvency.runner import SolvencyObservationRunReport
 
 SOLVENCY_MODEL_DATA_SCHEMA_VERSION = "1.0.0"
-SOLVENCY_NUMERIC_FEATURES = (
-    "company_age_years",
-    "log_authorised_capital_inr",
-    "log_paid_up_capital_inr",
-    "paid_to_authorised_capital_ratio",
-    "log_shared_address_company_count",
-    "log_address_registration_month_company_count",
-)
-SOLVENCY_CATEGORICAL_FEATURES = (
-    "state_code",
-    "roc_code",
-    "company_status",
-    "company_category",
-    "company_subcategory",
-    "company_class",
-    "listing_status",
-    "company_origin",
-    "nic_division",
-)
-SOLVENCY_MODEL_FEATURES = (
-    *SOLVENCY_NUMERIC_FEATURES,
-    *SOLVENCY_CATEGORICAL_FEATURES,
-)
+
+# The frozen model-data Parquet always carries the widest feature set, so a
+# narrower named set can be fitted from the same bytes without re-cutting a
+# split. These aliases keep the published column contract stable while
+# `assay.solvency.feature_sets` owns the definition.
+SOLVENCY_NUMERIC_FEATURES = BASELINE_WITH_STATUS.numeric_features
+SOLVENCY_CATEGORICAL_FEATURES = BASELINE_WITH_STATUS.categorical_features
+SOLVENCY_MODEL_FEATURES = BASELINE_WITH_STATUS.model_features
 
 
 SOLVENCY_FEATURE_SOURCE_COLUMNS = (
