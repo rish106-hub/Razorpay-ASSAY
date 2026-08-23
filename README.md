@@ -143,19 +143,41 @@ uv run python -m assay.cli.build_evidence_readiness \
   --observation-report data/generated/signal_observation/<run>.report.json
 ```
 
-Serve that immutable artifact through the read-only backend:
+Freeze the CIN- and name-addressable serving index before enabling on-demand
+merchant assessment. It is an immutable projection of one solvency observation
+run and adds no feature of its own:
+
+```bash
+PYTHONPATH=. uv run python -m assay.cli.build_merchant_index \
+  --observation-report data/generated/solvency_observation/schema-1.0.0/<run>.report.json
+```
+
+Serve the immutable artifacts through the read-only backend:
 
 ```bash
 export ASSAY_EVIDENCE_REPORT_PATH=data/generated/evidence_readiness/<report>.json
-export ASSAY_SOLVENCY_EVALUATION_PATH=data/generated/solvency_model/<run>/holdout_metrics.json
+export ASSAY_SOLVENCY_EVALUATION_PATH=data/generated/solvency_model/<run>/holdout_metrics.schema-1.1.0.json
+export ASSAY_MERCHANT_INDEX_REPORT_PATH=data/generated/merchant_risk_index/schema-1.0.0/<run>.report.json
+export ASSAY_SOLVENCY_MODEL_DIRECTORY=data/generated/solvency_model/<run>
 uv run uvicorn assay.api.app:app --host 127.0.0.1 --port 8000
 ```
 
 The frontend contract is available at `GET /v1/evidence/readiness`, the model
 gate at `GET /v1/model/readiness`, the optional public-solvency evaluation at
-`GET /v1/models/solvency/evaluation`, and process health at `GET /healthz`.
-Configure production frontend origins with `ASSAY_ALLOWED_ORIGINS`. The API
-does not read raw source data, train models, or calculate merchant scores.
+`GET /v1/models/solvency/evaluation`, the triage scale at `GET /v1/risk/bands`,
+the on-demand public assessment at `POST /v1/risk/assess`, and process health
+at `GET /healthz`. Configure production frontend origins with
+`ASSAY_ALLOWED_ORIGINS`.
+
+The API does not read raw source data and does not train models. It does
+calculate one score on demand, `cirp_public_announcement_score`, by looking the
+identity up in the frozen index and scoring that as-of row with a
+checksum-verified model package. The last two environment variables must be set
+together, and a score is refused with 503 unless the frozen holdout evidence is
+configured alongside them. The API never actions a merchant: it returns a
+score, its review-capacity band, the evidence behind that band, and its own
+limitations, for a human reviewer. The serving surface is documented in
+[`docs/MERCHANT_RISK_API.md`](docs/MERCHANT_RISK_API.md).
 
 ## Controlled GPU benchmark
 

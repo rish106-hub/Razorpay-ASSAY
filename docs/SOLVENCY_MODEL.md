@@ -45,6 +45,16 @@ tests were never uploaded to Colab and were scored once locally in full.
 | Lift at 0.1% review capacity | 569.97x | 341.41x |
 | Precision at 0.5% review capacity | 6.50% | 8.89% |
 | Recall at 0.5% review capacity | 64.77% | 40.24% |
+| Lift at 0.5% review capacity | 129.50x | 80.48x |
+| Precision at 2% review capacity | 1.92% | 2.95% |
+| Recall at 2% review capacity | 76.51% | 53.35% |
+| Lift at 2% review capacity | 38.25x | 26.67x |
+
+The 2% capacity was added after the 0.1% and 0.5% queues so that a serving
+triage scale could be derived from measured queues rather than from invented
+constants. Regenerating the artifact moved no previously published number:
+every metric already recorded at 0.1% and 0.5%, and both PR-AUC values, are
+byte-identical.
 
 Diagnostic accuracy at a 0.5 threshold is above 99.9% on both holdouts. It is
 not an acceptance metric. The class imbalance makes a high accuracy number easy
@@ -90,8 +100,16 @@ Evaluate the frozen full holdouts:
 PYTHONPATH=. uv run python -m assay.cli.evaluate_solvency_model \
   --run-directory data/generated/solvency_model/run-67e0cc4f177e35f4 \
   --model-data data/curated/solvency_model_data/schema-1.0.0/run-67e0cc4f177e35f42c2eff017555ec5ffc25be7d60e192e6f3ec811a0c2ede2f/solvency_model_data.parquet \
-  --output data/generated/solvency_model/run-67e0cc4f177e35f4/holdout_metrics.json
+  --output data/generated/solvency_model/run-67e0cc4f177e35f4/holdout_metrics.schema-1.1.0.json
 ```
+
+The command refuses to overwrite an existing output, so the original schema
+1.0.0 `holdout_metrics.json` was left in place and the regenerated evidence was
+written beside it. Schema 1.1.0 evaluates three review capacities instead of
+two and records `score_threshold`, the minimum score that entered each queue.
+Only the 1.1.0 artifact loads under the current contract, and only it can band
+a served score. The serving surface that consumes it is documented in
+[`docs/MERCHANT_RISK_API.md`](MERCHANT_RISK_API.md).
 
 Generated model bytes and row-level data remain ignored. Only code, contracts,
 tests, and evidence summaries belong in Git.
