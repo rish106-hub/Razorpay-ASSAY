@@ -69,6 +69,7 @@ def _write_solvency_evaluation(
     capacity = SolvencyReviewCapacityMetrics(
         capacity_fraction=0.001,
         review_rows=1,
+        score_threshold=0.0387,
         precision=0.5,
         recall=0.25,
         lift=100.0,

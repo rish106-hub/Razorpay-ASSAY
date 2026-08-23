@@ -1,0 +1,94 @@
+{
+  "feature_cutoff": "2023-11-03",
+  "merchant_index_run_id": "878d2b581a40c9148383800f6c6939d6427fe18141977964d8511ee7be524ec1",
+  "provenance": "Scenarios are real public MCA companies selected by score band from the frozen serving index. No synthetic or Razorpay merchant data is included.",
+  "sample_seed": 106,
+  "sampled_rows": 400302,
+  "scenarios": [
+    {
+      "expected_http_status": 200,
+      "expected_outcome": "matched",
+      "expected_risk_band": "ELEVATED_REVIEW",
+      "observed_score": 0.11081889,
+      "request": {
+        "cin": "U17111TZ2006PLC013046"
+      },
+      "scenario_id": "band_elevated_review",
+      "title": "ELEVATED_REVIEW public company",
+      "why_it_matters": "Shows the top public-insolvency review queue an analyst would work first during enhanced due diligence."
+    },
+    {
+      "expected_http_status": 200,
+      "expected_outcome": "matched",
+      "expected_risk_band": "WATCH",
+      "observed_score": 0.00890036,
+      "request": {
+        "cin": "U51900MH1996PTC101010"
+      },
+      "scenario_id": "band_watch",
+      "title": "WATCH public company",
+      "why_it_matters": "Shows a merchant worth periodic monitoring rather than immediate enhanced due diligence."
+    },
+    {
+      "expected_http_status": 200,
+      "expected_outcome": "matched",
+      "expected_risk_band": "STANDARD",
+      "observed_score": 0.00454443,
+      "request": {
+        "cin": "U00060PB2006PLC030011"
+      },
+      "scenario_id": "band_standard",
+      "title": "STANDARD public company",
+      "why_it_matters": "Shows the wider queue that only justifies routine KYB checks."
+    },
+    {
+      "expected_http_status": 200,
+      "expected_outcome": "matched",
+      "expected_risk_band": "LOW_SIGNAL",
+      "observed_score": 2.644e-05,
+      "request": {
+        "cin": "U55100HR2018PTC073866"
+      },
+      "scenario_id": "band_low_signal",
+      "title": "LOW_SIGNAL public company",
+      "why_it_matters": "Shows the majority case: no elevated public insolvency signal, which is not evidence of solvency."
+    },
+    {
+      "expected_http_status": 409,
+      "expected_outcome": "ambiguous_name",
+      "expected_risk_band": null,
+      "observed_score": null,
+      "request": {
+        "company_name": "GREAT WESTERN INDUSTRIES LIMITED"
+      },
+      "scenario_id": "ambiguous_company_name",
+      "title": "Company name shared by several public entities",
+      "why_it_matters": "Name-only KYB input must never silently resolve to one entity; the caller is asked for a CIN instead."
+    },
+    {
+      "expected_http_status": 422,
+      "expected_outcome": "invalid_identifier",
+      "expected_risk_band": null,
+      "observed_score": null,
+      "request": {
+        "cin": "NOT-A-REAL-CIN"
+      },
+      "scenario_id": "invalid_identifier",
+      "title": "Malformed CIN",
+      "why_it_matters": "An onboarding form can submit a typo; the service must reject the identifier instead of guessing a company."
+    },
+    {
+      "expected_http_status": 404,
+      "expected_outcome": "no_match",
+      "expected_risk_band": null,
+      "observed_score": null,
+      "request": {
+        "cin": "U74999DL9999PTC999999"
+      },
+      "scenario_id": "unassessable_company",
+      "title": "Well-formed CIN outside the frozen population",
+      "why_it_matters": "Companies registered after the feature cutoff, LLPs, and companies already in CIRP are not assessable. The service says so instead of returning a stale or invented score."
+    }
+  ],
+  "schema_version": "1.0.0"
+}

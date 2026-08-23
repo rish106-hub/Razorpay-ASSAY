@@ -86,6 +86,30 @@ class PortableSolvencyPreprocessor(BaseModel):
     transformed_feature_names: tuple[str, ...]
     label_boundary: str
 
+    def transformed_feature_owners(self) -> tuple[str, ...]:
+        """Map every transformed column back to the raw feature that owns it."""
+
+        owners: list[str] = list(self.numeric_features)
+        categorical_contract = zip(
+            self.categorical_features,
+            self.categories,
+            self.infrequent_categories,
+            strict=True,
+        )
+        for feature_name, categories, infrequent in categorical_contract:
+            infrequent_set = set(infrequent)
+            frequent_count = sum(
+                1 for category in categories if category not in infrequent_set
+            )
+            owners.extend(
+                [feature_name] * (frequent_count + bool(infrequent))
+            )
+        if len(owners) != len(self.transformed_feature_names):
+            raise SolvencyModelArtifactError(
+                "Portable preprocessing width does not match its feature names."
+            )
+        return tuple(owners)
+
     def transform(self, merchant_feature_frame: pl.DataFrame) -> sparse.csr_matrix:
         """Apply the exact Colab preprocessing without loading a pickle."""
 
@@ -262,6 +286,50 @@ class SolvencyModelPackage:
                 "Solvency model produced an invalid probability."
             )
         return score_series
+
+
+    def score_with_contributions(
+        self,
+        merchant_feature_frame: pl.DataFrame,
+    ) -> tuple[pl.Series, pl.DataFrame]:
+        """Return scores plus per-raw-feature log-odds contributions.
+
+        Contributions are exact tree SHAP values from the same iteration range
+        the selected classifier used. They explain the model, not the merchant.
+        """
+
+        if self._booster is None:
+            raise SolvencyModelArtifactError(
+                "The solvency model was not loaded; scoring is unavailable."
+            )
+        scores = self.score(merchant_feature_frame)
+        xgboost = importlib.import_module("xgboost")
+        transformed = self.preprocessor.transform(merchant_feature_frame)
+        raw_contributions = self._booster.predict(
+            xgboost.DMatrix(transformed),
+            pred_contribs=True,
+            iteration_range=(0, self.metrics.winner.best_iteration + 1),
+        )
+        contribution_matrix = np.asarray(raw_contributions, dtype=np.float64)
+        owners = self.preprocessor.transformed_feature_owners()
+        if contribution_matrix.shape[1] != len(owners) + 1:
+            raise SolvencyModelArtifactError(
+                "Solvency contribution width does not match the feature contract."
+            )
+        owner_array = np.asarray(owners)
+        contribution_columns = {
+            feature_name: pl.Series(
+                feature_name,
+                contribution_matrix[:, : len(owners)][
+                    :, owner_array == feature_name
+                ].sum(axis=1),
+            )
+            for feature_name in self.metrics.model_features
+        }
+        contribution_columns["model_bias"] = pl.Series(
+            "model_bias", contribution_matrix[:, -1]
+        )
+        return scores, pl.DataFrame(contribution_columns)
 
 
 def _load_json_model(path: Path, model: type[BaseModel]) -> BaseModel:

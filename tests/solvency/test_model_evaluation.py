@@ -4,6 +4,7 @@ import polars as pl
 import pytest
 
 from assay.solvency.evaluation import (
+    SOLVENCY_REVIEW_CAPACITIES,
     SolvencyHoldoutEvaluationError,
     evaluate_solvency_split,
 )
@@ -32,10 +33,15 @@ def test_evaluate_solvency_split_reports_review_capacity() -> None:
     )
 
     assert metrics.pr_auc == pytest.approx(1.0)
+    assert len(metrics.review_capacities) == len(SOLVENCY_REVIEW_CAPACITIES)
     assert metrics.review_capacities[0].review_rows == 1
     assert metrics.review_capacities[0].precision == pytest.approx(1.0)
+    assert metrics.review_capacities[0].score_threshold == pytest.approx(0.9)
     assert metrics.review_capacities[1].review_rows == 5
     assert metrics.review_capacities[1].recall == pytest.approx(1.0)
+    assert metrics.review_capacities[1].score_threshold == pytest.approx(0.0)
+    assert metrics.review_capacities[2].review_rows == 20
+    assert metrics.review_capacities[2].score_threshold == pytest.approx(0.0)
 
 
 def test_evaluate_solvency_split_rejects_split_contamination() -> None:

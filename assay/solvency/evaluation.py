@@ -12,8 +12,8 @@ from sklearn.metrics import average_precision_score, brier_score_loss, roc_auc_s
 
 from assay.solvency.artifact import SolvencyModelPackage
 
-SOLVENCY_HOLDOUT_EVALUATION_SCHEMA_VERSION = "1.0.0"
-SOLVENCY_REVIEW_CAPACITIES = (0.001, 0.005)
+SOLVENCY_HOLDOUT_EVALUATION_SCHEMA_VERSION = "1.1.0"
+SOLVENCY_REVIEW_CAPACITIES = (0.001, 0.005, 0.02)
 SOLVENCY_HOLDOUT_SPLITS = ("geography_test", "temporal_test")
 
 
@@ -27,6 +27,7 @@ class SolvencyReviewCapacityMetrics(BaseModel):
     model_config = ConfigDict(frozen=True)
     capacity_fraction: float = Field(gt=0, le=1)
     review_rows: int = Field(gt=0)
+    score_threshold: float = Field(ge=0, le=1)
     precision: float = Field(ge=0, le=1)
     recall: float = Field(ge=0, le=1)
     lift: float = Field(ge=0)
@@ -81,7 +82,7 @@ def calculate_review_capacity_metrics(
     scores: np.ndarray,
     capacity_fraction: float,
 ) -> SolvencyReviewCapacityMetrics:
-    """Calculate stable top-queue precision, recall, and lift."""
+    """Calculate stable top-queue threshold, precision, recall, and lift."""
 
     review_rows = max(1, math.ceil(len(targets) * capacity_fraction))
     selected_indices = np.argsort(-scores, kind="stable")[:review_rows]
@@ -92,6 +93,7 @@ def calculate_review_capacity_metrics(
     return SolvencyReviewCapacityMetrics(
         capacity_fraction=capacity_fraction,
         review_rows=review_rows,
+        score_threshold=float(scores[selected_indices].min()),
         precision=precision,
         recall=recall,
         lift=precision / base_rate,
