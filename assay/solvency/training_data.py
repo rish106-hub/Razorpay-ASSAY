@@ -16,10 +16,14 @@ from assay.artifacts.parquet import (
     verify_parquet_artifact,
     write_immutable_parquet,
 )
-from assay.solvency.feature_sets import BASELINE_WITH_STATUS
+from assay.solvency.feature_sets import (
+    BASELINE_WITH_STATUS,
+    CIN_STRUCTURE_CATEGORICAL_FEATURES,
+    EXPANDED_NO_STATUS,
+)
 from assay.solvency.runner import SolvencyObservationRunReport
 
-SOLVENCY_MODEL_DATA_SCHEMA_VERSION = "1.0.0"
+SOLVENCY_MODEL_DATA_SCHEMA_VERSION = "1.1.0"
 
 # The frozen model-data Parquet always carries the widest feature set, so a
 # narrower named set can be fitted from the same bytes without re-cutting a
@@ -38,6 +42,46 @@ SOLVENCY_FEATURE_SOURCE_COLUMNS = (
     "shared_address_company_count",
     "address_registration_month_company_count",
     *SOLVENCY_CATEGORICAL_FEATURES,
+)
+
+# The expanded contract is kept separate from the frozen baseline one above,
+# which the serving index also derives from. Widening the baseline in place
+# would have forced a serving-index rebuild in the same step as a model
+# experiment, and those two things must be able to move independently.
+EXPANDED_SOLVENCY_NUMERIC_FEATURES = tuple(
+    feature_name
+    for feature_name in EXPANDED_NO_STATUS.numeric_features
+    if feature_name not in SOLVENCY_NUMERIC_FEATURES
+)
+EXPANDED_SOLVENCY_CATEGORICAL_FEATURES = CIN_STRUCTURE_CATEGORICAL_FEATURES
+EXPANDED_SOLVENCY_FEATURE_SOURCE_COLUMNS = (
+    "address_cluster_registration_span_days",
+    "address_cluster_registration_month_entropy",
+    "address_cluster_max_month_share",
+    "address_cluster_nic_division_distinct",
+    "address_cluster_authorised_capital_cv",
+    "address_cluster_distinct_name_head_ratio",
+    "registrar_year_cohort_company_count",
+    "address_cluster_cohort_peer_count",
+    "address_cluster_roc_serial_min_gap",
+    "cin_record_disagreement_count",
+    *EXPANDED_SOLVENCY_CATEGORICAL_FEATURES,
+)
+
+# One Parquet has to serve every frozen feature set, so it carries the union of
+# their columns. A narrower set is then fitted by column selection instead of by
+# re-cutting a split, which is what keeps the splits identical across sets.
+SOLVENCY_MODEL_DATA_NUMERIC_FEATURES = (
+    *SOLVENCY_NUMERIC_FEATURES,
+    *EXPANDED_SOLVENCY_NUMERIC_FEATURES,
+)
+SOLVENCY_MODEL_DATA_CATEGORICAL_FEATURES = (
+    *SOLVENCY_CATEGORICAL_FEATURES,
+    *EXPANDED_SOLVENCY_CATEGORICAL_FEATURES,
+)
+SOLVENCY_MODEL_DATA_FEATURES = (
+    *SOLVENCY_MODEL_DATA_NUMERIC_FEATURES,
+    *SOLVENCY_MODEL_DATA_CATEGORICAL_FEATURES,
 )
 
 
@@ -66,6 +110,48 @@ def solvency_feature_expressions() -> tuple[pl.Expr, ...]:
         *[
             pl.col(feature_name).fill_null("UNKNOWN").cast(pl.String)
             for feature_name in SOLVENCY_CATEGORICAL_FEATURES
+        ],
+    )
+
+
+def expanded_solvency_feature_expressions() -> tuple[pl.Expr, ...]:
+    """Return the derivation for the columns beyond the frozen baseline.
+
+    The two heavy-tailed adjacency counts are log-scaled, matching how the
+    baseline treats its own counts. The serial gap is not: it carries the -1
+    "no comparable peer" sentinel, which log1p cannot represent and which a
+    tree can split on directly.
+
+    The four disagreement flags are tri-state booleans, so they are carried as
+    three-level strings. Casting them to a number would put "undecidable"
+    between "agrees" and "disagrees" on a scale where that ordering is meaningless.
+    """
+
+    return (
+        pl.col("address_cluster_registration_span_days").cast(pl.Float32),
+        pl.col("address_cluster_registration_month_entropy").cast(pl.Float32),
+        pl.col("address_cluster_max_month_share").cast(pl.Float32),
+        pl.col("address_cluster_nic_division_distinct").cast(pl.Float32),
+        pl.col("address_cluster_authorised_capital_cv").cast(pl.Float32),
+        pl.col("address_cluster_distinct_name_head_ratio").cast(pl.Float32),
+        pl.col("registrar_year_cohort_company_count")
+        .cast(pl.Float64)
+        .log1p()
+        .cast(pl.Float32)
+        .alias("log_registrar_year_cohort_company_count"),
+        pl.col("address_cluster_cohort_peer_count")
+        .cast(pl.Float64)
+        .log1p()
+        .cast(pl.Float32)
+        .alias("log_address_cluster_cohort_peer_count"),
+        pl.col("address_cluster_roc_serial_min_gap").cast(pl.Float32),
+        pl.col("cin_record_disagreement_count").cast(pl.Float32),
+        *[
+            pl.col(feature_name)
+            .cast(pl.String)
+            .fill_null("UNKNOWN")
+            .alias(feature_name)
+            for feature_name in EXPANDED_SOLVENCY_CATEGORICAL_FEATURES
         ],
     )
 
@@ -147,6 +233,7 @@ def build_solvency_model_data(
         "shared_address_company_count",
         "address_registration_month_company_count",
         *SOLVENCY_CATEGORICAL_FEATURES,
+        *EXPANDED_SOLVENCY_FEATURE_SOURCE_COLUMNS,
     }
     if missing_columns := required_columns - set(observation_frame.columns):
         raise SolvencyTrainingDataError(
@@ -184,6 +271,7 @@ def build_solvency_model_data(
     )
     return eligible_frame.with_columns(
         *solvency_feature_expressions(),
+        *expanded_solvency_feature_expressions(),
         target.cast(pl.Int8).alias("target"),
         split.alias("dataset_split"),
     ).select(
@@ -192,7 +280,7 @@ def build_solvency_model_data(
         "dataset_split",
         "target",
         "first_cirp_announcement_date",
-        *SOLVENCY_MODEL_FEATURES,
+        *SOLVENCY_MODEL_DATA_FEATURES,
     )
 
 
@@ -302,8 +390,8 @@ class SolvencyTrainingDataBuilder:
             temporal_test_outcome_start=self._config.temporal_test_outcome_start,
             unseen_geography_states=self._config.unseen_geography_states,
             split_hash_seed=self._config.split_hash_seed,
-            numeric_features=SOLVENCY_NUMERIC_FEATURES,
-            categorical_features=SOLVENCY_CATEGORICAL_FEATURES,
+            numeric_features=SOLVENCY_MODEL_DATA_NUMERIC_FEATURES,
+            categorical_features=SOLVENCY_MODEL_DATA_CATEGORICAL_FEATURES,
             split_evidence=split_evidence,
             split_decision=split_decision,
             model_data_artifact=model_data_artifact,

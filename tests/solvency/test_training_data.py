@@ -6,6 +6,7 @@ from pathlib import Path
 import polars as pl
 
 from assay.solvency.training_data import (
+    EXPANDED_SOLVENCY_CATEGORICAL_FEATURES,
     SOLVENCY_CATEGORICAL_FEATURES,
     SolvencyTrainingDataConfig,
     build_solvency_model_data,
@@ -37,6 +38,20 @@ def test_solvency_model_splits_prioritise_geography_then_event_time() -> None:
             "paid_to_authorised_capital_ratio": [0.5] * 4,
             "shared_address_company_count": [1] * 4,
             "address_registration_month_company_count": [1] * 4,
+            "address_cluster_registration_span_days": [0] * 4,
+            "address_cluster_registration_month_entropy": [0.0] * 4,
+            "address_cluster_max_month_share": [1.0] * 4,
+            "address_cluster_nic_division_distinct": [1] * 4,
+            "address_cluster_authorised_capital_cv": [0.0] * 4,
+            "address_cluster_distinct_name_head_ratio": [1.0] * 4,
+            "registrar_year_cohort_company_count": [1] * 4,
+            "address_cluster_cohort_peer_count": [0] * 4,
+            "address_cluster_roc_serial_min_gap": [-1] * 4,
+            "cin_record_disagreement_count": [0] * 4,
+            **{
+                feature_name: [False] * 4
+                for feature_name in EXPANDED_SOLVENCY_CATEGORICAL_FEATURES
+            },
             **{
                 feature_name: [
                     "karnataka" if feature_name == "state_code" else "VALUE",

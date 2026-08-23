@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SOLVENCY_FEATURE_SET_SCHEMA_VERSION = "1.0.0"
+SOLVENCY_FEATURE_SET_SCHEMA_VERSION = "1.1.0"
 
 #: MCA status is a snapshot field, not a discovered pattern. `Under CIRP` means
 #: the resolution process has already started, so the column is treated as an
@@ -41,6 +41,39 @@ BASELINE_CATEGORICAL_FEATURES = (
     "listing_status",
     "company_origin",
     "nic_division",
+)
+
+#: Shape of the address cluster a company sits in. A plain shared-address count
+#: cannot separate a registered-office service provider from a batch
+#: incorporation; these six statistics can.
+ADDRESS_CLUSTER_SHAPE_FEATURES = (
+    "address_cluster_registration_span_days",
+    "address_cluster_registration_month_entropy",
+    "address_cluster_max_month_share",
+    "address_cluster_nic_division_distinct",
+    "address_cluster_authorised_capital_cv",
+    "address_cluster_distinct_name_head_ratio",
+)
+
+#: ROC-serial adjacency inside the intersection of an address cluster and a
+#: registrar-year cohort. Near-adjacent serials at one address mean one filing
+#: batch. This is a proxy for the filing-agent graph, not the director graph.
+ROC_SERIAL_ADJACENCY_FEATURES = (
+    "log_registrar_year_cohort_company_count",
+    "log_address_cluster_cohort_peer_count",
+    "address_cluster_roc_serial_min_gap",
+)
+
+#: How far the company's own identifier disagrees with its own record columns.
+CIN_STRUCTURE_NUMERIC_FEATURES = ("cin_record_disagreement_count",)
+
+#: The individual disagreements, as three-level categories rather than a sum, so
+#: a year correction and a registrar migration stay distinguishable.
+CIN_STRUCTURE_CATEGORICAL_FEATURES = (
+    "cin_year_disagrees_with_record",
+    "cin_nic_division_disagrees_with_record",
+    "cin_listing_disagrees_with_record",
+    "cin_state_disagrees_with_record",
 )
 
 
@@ -85,10 +118,28 @@ BASELINE_NO_STATUS = SolvencyFeatureSet(
     ),
 )
 
+EXPANDED_NO_STATUS = SolvencyFeatureSet(
+    name="expanded_no_status",
+    numeric_features=(
+        *BASELINE_NUMERIC_FEATURES,
+        *ADDRESS_CLUSTER_SHAPE_FEATURES,
+        *ROC_SERIAL_ADJACENCY_FEATURES,
+        *CIN_STRUCTURE_NUMERIC_FEATURES,
+    ),
+    categorical_features=(
+        *BASELINE_NO_STATUS.categorical_features,
+        *CIN_STRUCTURE_CATEGORICAL_FEATURES,
+    ),
+)
+
 DEFAULT_SOLVENCY_FEATURE_SET_NAME = BASELINE_WITH_STATUS.name
 SOLVENCY_FEATURE_SETS: dict[str, SolvencyFeatureSet] = {
     feature_set.name: feature_set
-    for feature_set in (BASELINE_WITH_STATUS, BASELINE_NO_STATUS)
+    for feature_set in (
+        BASELINE_WITH_STATUS,
+        BASELINE_NO_STATUS,
+        EXPANDED_NO_STATUS,
+    )
 }
 
 

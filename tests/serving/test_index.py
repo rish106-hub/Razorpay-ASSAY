@@ -11,6 +11,8 @@ from assay.serving.index import (
     build_merchant_risk_index,
 )
 from assay.solvency.training_data import (
+    EXPANDED_SOLVENCY_CATEGORICAL_FEATURES,
+    SOLVENCY_MODEL_FEATURES,
     SolvencyTrainingDataConfig,
     build_solvency_model_data,
 )
@@ -56,6 +58,20 @@ def _observation_frame() -> pl.DataFrame:
             "listing_status": ["Unlisted", "Unlisted", "Listed"],
             "company_origin": ["Indian", "Indian", "Indian"],
             "nic_division": ["72", None, "49"],
+            "address_cluster_registration_span_days": [0, 0, 0],
+            "address_cluster_registration_month_entropy": [0.0, 0.0, 0.0],
+            "address_cluster_max_month_share": [1.0, 1.0, 1.0],
+            "address_cluster_nic_division_distinct": [1, 0, 1],
+            "address_cluster_authorised_capital_cv": [0.0, 0.0, 0.0],
+            "address_cluster_distinct_name_head_ratio": [1.0, 1.0, 1.0],
+            "registrar_year_cohort_company_count": [1, 1, 1],
+            "address_cluster_cohort_peer_count": [0, 0, 0],
+            "address_cluster_roc_serial_min_gap": [-1, -1, -1],
+            "cin_record_disagreement_count": [0, 1, 0],
+            **{
+                feature_name: [False, None, False]
+                for feature_name in EXPANDED_SOLVENCY_CATEGORICAL_FEATURES
+            },
         }
     )
 
@@ -89,12 +105,10 @@ def test_index_features_match_the_frozen_training_derivation() -> None:
     )
     index_frame = build_merchant_risk_index(observation_frame)
 
-    feature_columns = [
-        column
-        for column in model_frame.columns
-        if column not in {"company_snapshot_id", "dataset_split", "target",
-                          "first_cirp_announcement_date"}
-    ]
+    # The index carries the frozen baseline contract only. Model data also
+    # carries the expanded columns, which no served row needs, so the equality
+    # that matters is over the baseline features both sides claim to derive.
+    feature_columns = list(SOLVENCY_MODEL_FEATURES)
     assert model_frame.sort("cin").select(feature_columns).equals(
         index_frame.sort("cin").select(feature_columns)
     )

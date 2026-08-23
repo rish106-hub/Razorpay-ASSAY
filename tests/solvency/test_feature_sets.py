@@ -3,9 +3,15 @@ from __future__ import annotations
 import pytest
 
 from assay.solvency.feature_sets import (
+    ADDRESS_CLUSTER_SHAPE_FEATURES,
     BASELINE_NO_STATUS,
+    BASELINE_NUMERIC_FEATURES,
     BASELINE_WITH_STATUS,
+    CIN_STRUCTURE_CATEGORICAL_FEATURES,
+    CIN_STRUCTURE_NUMERIC_FEATURES,
     DEFAULT_SOLVENCY_FEATURE_SET_NAME,
+    EXPANDED_NO_STATUS,
+    ROC_SERIAL_ADJACENCY_FEATURES,
     SOLVENCY_FEATURE_SETS,
     SOLVENCY_OUTCOME_ADJACENT_FEATURE,
     SolvencyFeatureSetError,
@@ -13,8 +19,10 @@ from assay.solvency.feature_sets import (
 )
 from assay.solvency.training_data import (
     SOLVENCY_CATEGORICAL_FEATURES,
+    SOLVENCY_MODEL_DATA_FEATURES,
     SOLVENCY_MODEL_FEATURES,
     SOLVENCY_NUMERIC_FEATURES,
+    expanded_solvency_feature_expressions,
 )
 
 
@@ -89,3 +97,48 @@ def test_resolve_feature_set_names_the_valid_alternatives() -> None:
 def test_feature_sets_are_frozen() -> None:
     with pytest.raises(ValueError, match="frozen"):
         BASELINE_WITH_STATUS.name = "renamed"  # type: ignore[misc]
+
+
+def test_expanded_no_status_extends_the_honest_baseline_only() -> None:
+    """The expanded set adds cluster shape and CIN structure, never status."""
+
+    assert EXPANDED_NO_STATUS.numeric_features[: len(BASELINE_NUMERIC_FEATURES)] == (
+        BASELINE_NUMERIC_FEATURES
+    )
+    assert EXPANDED_NO_STATUS.numeric_features[len(BASELINE_NUMERIC_FEATURES) :] == (
+        *ADDRESS_CLUSTER_SHAPE_FEATURES,
+        *ROC_SERIAL_ADJACENCY_FEATURES,
+        *CIN_STRUCTURE_NUMERIC_FEATURES,
+    )
+    assert EXPANDED_NO_STATUS.categorical_features == (
+        *BASELINE_NO_STATUS.categorical_features,
+        *CIN_STRUCTURE_CATEGORICAL_FEATURES,
+    )
+    assert EXPANDED_NO_STATUS.includes_outcome_adjacent_status is False
+    assert len(EXPANDED_NO_STATUS.model_features) == 28
+
+
+def test_model_data_carries_the_union_of_every_frozen_feature_set() -> None:
+    """A narrower set must be fittable by selection, never by a new split."""
+
+    carried = set(SOLVENCY_MODEL_DATA_FEATURES)
+    for feature_set in SOLVENCY_FEATURE_SETS.values():
+        assert set(feature_set.model_features) <= carried
+    assert len(SOLVENCY_MODEL_DATA_FEATURES) == len(set(SOLVENCY_MODEL_DATA_FEATURES))
+    assert SOLVENCY_MODEL_DATA_FEATURES[: len(SOLVENCY_MODEL_FEATURES)] != ()
+
+
+def test_expanded_expressions_cover_every_added_column() -> None:
+    """Each expanded feature has exactly one derivation, named after it."""
+
+    derived_names = [
+        expression.meta.output_name()
+        for expression in expanded_solvency_feature_expressions()
+    ]
+    expanded_names = [
+        feature_name
+        for feature_name in EXPANDED_NO_STATUS.model_features
+        if feature_name not in set(BASELINE_NO_STATUS.model_features)
+    ]
+
+    assert sorted(derived_names) == sorted(expanded_names)
