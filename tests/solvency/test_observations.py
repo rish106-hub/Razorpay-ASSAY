@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 import polars as pl
 
@@ -8,6 +8,120 @@ from assay.solvency.observations import (
     SolvencyObservationConfig,
     build_solvency_observations,
 )
+
+SHAPE_COLUMNS = (
+    "address_cluster_registration_span_days",
+    "address_cluster_registration_month_entropy",
+    "address_cluster_max_month_share",
+    "address_cluster_nic_division_distinct",
+    "address_cluster_authorised_capital_cv",
+    "address_cluster_distinct_name_head_ratio",
+)
+FEATURE_CUTOFF = date(2023, 11, 3)
+SOURCE_SNAPSHOT_ID = "a" * 64
+
+
+def _cin(sequence_number: int) -> str:
+    return f"U{sequence_number:05d}DL2020PTC{sequence_number:06d}"
+
+
+def _observations(rows: list[dict[str, object]]) -> dict[str, dict[str, object]]:
+    """Build observations from compact row specs, keyed by company snapshot id."""
+
+    row_count = len(rows)
+    company_frame = pl.DataFrame(
+        {
+            "company_snapshot_id": [row["id"] for row in rows],
+            "source_snapshot_id": [SOURCE_SNAPSHOT_ID] * row_count,
+            "snapshot_as_of": [FEATURE_CUTOFF] * row_count,
+            "legal_entity_identifier": [row["cin"] for row in rows],
+            "legal_entity_identifier_type": ["CIN"] * row_count,
+            "legal_entity_identifier_is_valid_format": [True] * row_count,
+            "cin": [row["cin"] for row in rows],
+            "company_name": [row.get("name") for row in rows],
+            "company_status": ["Active"] * row_count,
+            "registration_date": [row.get("registered_on") for row in rows],
+            "state_code": ["delhi"] * row_count,
+            "roc_code": ["roc delhi"] * row_count,
+            "company_category": ["company limited by shares"] * row_count,
+            "company_subcategory": ["non-government company"] * row_count,
+            "company_class": ["private"] * row_count,
+            "listing_status": ["unlisted"] * row_count,
+            "company_origin": ["indian"] * row_count,
+            "authorised_capital_inr": [row.get("capital") for row in rows],
+            "paid_up_capital_inr": [row.get("capital") for row in rows],
+            "nic_code": [row.get("nic_code") for row in rows],
+        },
+        schema_overrides={
+            "company_name": pl.String,
+            "registration_date": pl.Date,
+            "authorised_capital_inr": pl.Int64,
+            "paid_up_capital_inr": pl.Int64,
+            "nic_code": pl.String,
+        },
+    )
+    address_frame = pl.DataFrame(
+        {
+            "legal_entity_identifier": [row["cin"] for row in rows],
+            "source_snapshot_id": [SOURCE_SNAPSHOT_ID] * row_count,
+            "snapshot_as_of": [FEATURE_CUTOFF] * row_count,
+            "address_group_key": [row.get("address") for row in rows],
+        },
+        schema_overrides={"address_group_key": pl.String},
+    )
+    cirp_frame = pl.DataFrame(
+        {
+            "solvency_event_id": ["unrelated-event"],
+            "cin": [_cin(99_998)],
+            "event_date": [date(2025, 4, 1)],
+        }
+    )
+    observations = build_solvency_observations(
+        company_frame,
+        address_frame,
+        cirp_frame,
+        SolvencyObservationConfig(
+            run_id="b" * 64,
+            feature_cutoff=FEATURE_CUTOFF,
+            outcome_window_end=date(2026, 8, 21),
+        ),
+    )
+    return {row["company_snapshot_id"]: row for row in observations.to_dicts()}
+
+
+def _shell_factory_rows() -> list[dict[str, object]]:
+    """Fifty companies incorporated at one address inside three weeks."""
+
+    return [
+        {
+            "id": f"shell-{index}",
+            "cin": _cin(1_000 + index),
+            "address": "1 SHELL LANE",
+            "registered_on": date(2020, 1, 2) + timedelta(days=index % 20),
+            "capital": 100_000,
+            "nic_code": "64990",
+            "name": f"Abc Traders {index} Private Limited",
+        }
+        for index in range(50)
+    ]
+
+
+def _service_provider_rows() -> list[dict[str, object]]:
+    """Fifty companies at a registered-office provider across twelve years."""
+
+    industries = ["62010", "10101", "45100", "85100", "41000"]
+    return [
+        {
+            "id": f"service-{index}",
+            "cin": _cin(2_000 + index),
+            "address": "2 SERVICE ROAD",
+            "registered_on": date(2011, 1, 1) + timedelta(days=index * 88),
+            "capital": 100_000 * (index + 1),
+            "nic_code": industries[index % len(industries)],
+            "name": f"Distinct{index} Ventures Private Limited",
+        }
+        for index in range(50)
+    ]
 
 
 def test_solvency_observations_exclude_prior_cirp_and_freeze_features() -> None:
@@ -101,3 +215,174 @@ def test_solvency_observations_exclude_prior_cirp_and_freeze_features() -> None:
     assert by_company["company-3"]["target_name"] == (
         "cirp_public_announcement_outcome"
     )
+
+
+
+def test_address_cluster_shape_separates_shell_factory_from_service_provider() -> None:
+    by_company = _observations(_shell_factory_rows() + _service_provider_rows())
+    shell = by_company["shell-0"]
+    service = by_company["service-0"]
+
+    assert shell["shared_address_company_count"] == 50
+    assert service["shared_address_company_count"] == 50
+
+    assert shell["address_cluster_registration_span_days"] == 19
+    assert service["address_cluster_registration_span_days"] == 4312
+    assert (
+        shell["address_cluster_registration_month_entropy"]
+        < service["address_cluster_registration_month_entropy"]
+    )
+    assert shell["address_cluster_max_month_share"] == 1.0
+    assert service["address_cluster_max_month_share"] < 0.2
+    assert shell["address_cluster_nic_division_distinct"] == 1
+    assert service["address_cluster_nic_division_distinct"] == 5
+    assert shell["address_cluster_authorised_capital_cv"] == 0.0
+    assert service["address_cluster_authorised_capital_cv"] > 0.5
+    assert shell["address_cluster_distinct_name_head_ratio"] == 0.02
+    assert service["address_cluster_distinct_name_head_ratio"] == 1.0
+
+
+def test_address_cluster_shape_defaults_to_single_company_values() -> None:
+    by_company = _observations(
+        [
+            {
+                "id": "single",
+                "cin": _cin(1),
+                "address": "3 SOLO STREET",
+                "registered_on": date(2021, 6, 6),
+                "capital": 200_000,
+                "nic_code": "64990",
+                "name": "Solo Ventures Private Limited",
+            },
+            {
+                "id": "blank-address",
+                "cin": _cin(2),
+                "address": "",
+                "registered_on": date(2021, 6, 6),
+                "capital": 200_000,
+                "nic_code": "64990",
+                "name": "Blank Address Private Limited",
+            },
+            {
+                "id": "null-address",
+                "cin": _cin(3),
+                "address": None,
+                "registered_on": date(2021, 6, 6),
+                "capital": 200_000,
+                "nic_code": None,
+                "name": "Null Address Private Limited",
+            },
+        ]
+    )
+    single_company_shape = {
+        "address_cluster_registration_span_days": 0,
+        "address_cluster_registration_month_entropy": 0.0,
+        "address_cluster_max_month_share": 1.0,
+        "address_cluster_nic_division_distinct": 1,
+        "address_cluster_authorised_capital_cv": 0.0,
+        "address_cluster_distinct_name_head_ratio": 1.0,
+    }
+    for column, expected_value in single_company_shape.items():
+        assert by_company["single"][column] == expected_value
+        assert by_company["blank-address"][column] == expected_value
+
+    assert by_company["single"]["shared_address_company_count"] == 1
+    assert by_company["blank-address"]["shared_address_company_count"] == 0
+    assert by_company["null-address"]["shared_address_company_count"] == 0
+    assert by_company["null-address"]["address_cluster_nic_division_distinct"] == 0
+
+
+def test_address_cluster_shape_absorbs_missing_registration_capital_and_nic() -> None:
+    by_company = _observations(
+        [
+            {
+                "id": "unobserved-a",
+                "cin": _cin(11),
+                "address": "4 UNOBSERVED WAY",
+                "registered_on": None,
+                "capital": None,
+                "nic_code": None,
+                "name": None,
+            },
+            {
+                "id": "unobserved-b",
+                "cin": _cin(12),
+                "address": "4 UNOBSERVED WAY",
+                "registered_on": None,
+                "capital": None,
+                "nic_code": None,
+                "name": None,
+            },
+            {
+                "id": "partial-a",
+                "cin": _cin(13),
+                "address": "5 PARTIAL WAY",
+                "registered_on": date(2020, 5, 1),
+                "capital": None,
+                "nic_code": "64990",
+                "name": "Partial Holdings Private Limited",
+            },
+            {
+                "id": "partial-b",
+                "cin": _cin(14),
+                "address": "5 PARTIAL WAY",
+                "registered_on": None,
+                "capital": 500_000,
+                "nic_code": None,
+                "name": None,
+            },
+            {
+                "id": "zero-capital-a",
+                "cin": _cin(15),
+                "address": "6 ZERO WAY",
+                "registered_on": date(2020, 5, 1),
+                "capital": 0,
+                "nic_code": "64990",
+                "name": "Zero Capital One Private Limited",
+            },
+            {
+                "id": "zero-capital-b",
+                "cin": _cin(16),
+                "address": "6 ZERO WAY",
+                "registered_on": date(2020, 6, 1),
+                "capital": 0,
+                "nic_code": "64990",
+                "name": "Zero Capital Two Private Limited",
+            },
+        ]
+    )
+
+    unobserved = by_company["unobserved-a"]
+    assert unobserved["shared_address_company_count"] == 2
+    assert unobserved["address_cluster_registration_span_days"] == 0
+    assert unobserved["address_cluster_registration_month_entropy"] == 0.0
+    assert unobserved["address_cluster_max_month_share"] == 1.0
+    assert unobserved["address_cluster_nic_division_distinct"] == 0
+    assert unobserved["address_cluster_authorised_capital_cv"] == 0.0
+    assert unobserved["address_cluster_distinct_name_head_ratio"] == 1.0
+
+    partial = by_company["partial-a"]
+    assert partial["address_cluster_registration_span_days"] == 0
+    assert partial["address_cluster_max_month_share"] == 1.0
+    assert partial["address_cluster_nic_division_distinct"] == 1
+    assert partial["address_cluster_authorised_capital_cv"] == 0.0
+    assert partial["address_cluster_distinct_name_head_ratio"] == 1.0
+
+    zero_capital = by_company["zero-capital-a"]
+    assert zero_capital["address_cluster_authorised_capital_cv"] == 0.0
+    assert zero_capital["address_cluster_registration_span_days"] == 31
+    assert zero_capital["address_cluster_max_month_share"] == 0.5
+    assert zero_capital["address_cluster_registration_month_entropy"] == 1.0
+    assert zero_capital["address_cluster_distinct_name_head_ratio"] == 0.5
+
+
+def test_address_cluster_shape_is_independent_of_row_order() -> None:
+    rows = _shell_factory_rows() + _service_provider_rows()
+    forward = _observations(rows)
+    reversed_rows = _observations(list(reversed(rows)))
+
+    for company_snapshot_id, observation in forward.items():
+        for column in SHAPE_COLUMNS:
+            assert (
+                reversed_rows[company_snapshot_id][column] == observation[column]
+            )
