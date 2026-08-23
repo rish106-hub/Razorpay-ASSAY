@@ -60,7 +60,25 @@ carry real but weak signal.
 
 On companies that were `Active` at the cutoff — 101 of 298 geography positives
 and 215 of 328 temporal positives — both models score PR-AUC below 0.013. That
-slice is the actual open problem. See `docs/SOLVENCY_MODEL.md`.
+slice is the actual open problem.
+
+The `expanded_no_status` feature set was built to attack it: six address-cluster
+shape statistics, three ROC-serial adjacency columns, and the CIN-versus-record
+disagreement structure, 28 features in total. It is **worse than the honest
+baseline on every measured number**. Geography PR-AUC 0.00502 against 0.00823,
+temporal 0.00934 against 0.01591, and the `Active` slice 0.00239 and 0.00772
+against 0.00475 and 0.01216.
+
+The columns are not empty and the model did not ignore them: they carry 9.01% of
+its total gain, and positives do sit in measurably tighter address clusters
+(mean registration span 1,566 days against 6,711). Nine extra dimensions on 964
+positive training rows did not generalise, and validation-only selection said so
+before the holdouts were touched. Describing a batch-incorporation cluster is
+not the same as predicting insolvency from it. The next attempt needs a
+different input, MCA director/DIN data, not a rearrangement of this one.
+
+All three fits share one payload, one set of splits, and one scoring pass each.
+See `docs/SOLVENCY_MODEL.md`.
 
 The model decision is `EVALUATED_NOT_PRODUCTION_READY`. It remains blocked on
 IBBI reuse clearance, real merchant/payment telemetry, measured false-positive
