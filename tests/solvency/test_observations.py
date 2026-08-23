@@ -386,3 +386,176 @@ def test_address_cluster_shape_is_independent_of_row_order() -> None:
             assert (
                 reversed_rows[company_snapshot_id][column] == observation[column]
             )
+
+
+def _cohort_cin(*, state: str, year: int, serial: int) -> str:
+    """Build a CIN whose registrar-year cohort and ROC serial are explicit."""
+
+    return f"U72900{state}{year}PTC{serial:06d}"
+
+
+def test_roc_serial_adjacency_is_measured_inside_a_registrar_year_cohort() -> None:
+    """Serials are only comparable within one registrar office and one year."""
+
+    observations = _observations(
+        [
+            {
+                "id": "same-cohort-low",
+                "cin": _cohort_cin(state="DL", year=2020, serial=100),
+                "address": "1 SHELL LANE",
+                "registered_on": date(2020, 1, 2),
+                "capital": 100_000,
+                "nic_code": "72900",
+                "name": "Alpha Private Limited",
+            },
+            {
+                "id": "same-cohort-high",
+                "cin": _cohort_cin(state="DL", year=2020, serial=101),
+                "address": "1 SHELL LANE",
+                "registered_on": date(2020, 1, 3),
+                "capital": 100_000,
+                "nic_code": "72900",
+                "name": "Beta Private Limited",
+            },
+            {
+                "id": "other-cohort",
+                "cin": _cohort_cin(state="MH", year=2020, serial=102),
+                "address": "1 SHELL LANE",
+                "registered_on": date(2020, 1, 4),
+                "capital": 100_000,
+                "nic_code": "72900",
+                "name": "Gamma Private Limited",
+            },
+        ]
+    )
+
+    for company_id in ("same-cohort-low", "same-cohort-high"):
+        assert observations[company_id]["registrar_year_cohort_company_count"] == 2
+        assert observations[company_id]["address_cluster_cohort_peer_count"] == 1
+        assert observations[company_id]["address_cluster_roc_serial_min_gap"] == 1
+    other = observations["other-cohort"]
+    assert other["registrar_year_cohort_company_count"] == 1
+    assert other["address_cluster_cohort_peer_count"] == 0
+    assert other["address_cluster_roc_serial_min_gap"] == -1
+
+
+def test_roc_serial_gap_takes_the_nearest_neighbour_on_either_side() -> None:
+    """A company between two peers reports the smaller of the two distances."""
+
+    observations = _observations(
+        [
+            {
+                "id": f"serial-{serial}",
+                "cin": _cohort_cin(state="DL", year=2020, serial=serial),
+                "address": "1 SHELL LANE",
+                "registered_on": date(2020, 1, 2),
+                "capital": 100_000,
+                "nic_code": "72900",
+                "name": f"Company {serial} Private Limited",
+            }
+            for serial in (100, 105, 106)
+        ]
+    )
+
+    assert observations["serial-100"]["address_cluster_roc_serial_min_gap"] == 5
+    assert observations["serial-105"]["address_cluster_roc_serial_min_gap"] == 1
+    assert observations["serial-106"]["address_cluster_roc_serial_min_gap"] == 1
+    assert observations["serial-105"]["address_cluster_cohort_peer_count"] == 2
+
+
+def test_roc_serial_adjacency_is_neutral_without_a_comparable_peer() -> None:
+    """No address cluster, or a non-CIN identifier, yields no adjacency claim."""
+
+    observations = _observations(
+        [
+            {
+                "id": "no-address",
+                "cin": _cohort_cin(state="DL", year=2020, serial=100),
+                "address": None,
+                "registered_on": date(2020, 1, 2),
+                "capital": 100_000,
+                "nic_code": "72900",
+                "name": "Alpha Private Limited",
+            },
+            {
+                "id": "llpin",
+                "cin": "AAB-1234",
+                "address": "1 SHELL LANE",
+                "registered_on": date(2020, 1, 2),
+                "capital": 100_000,
+                "nic_code": "72900",
+                "name": "Beta LLP",
+            },
+        ]
+    )
+
+    no_address = observations["no-address"]
+    assert no_address["registrar_year_cohort_company_count"] == 1
+    assert no_address["address_cluster_cohort_peer_count"] == 0
+    assert no_address["address_cluster_roc_serial_min_gap"] == -1
+    llpin = observations["llpin"]
+    assert llpin["registrar_year_cohort_company_count"] == 0
+    assert llpin["address_cluster_cohort_peer_count"] == 0
+    assert llpin["address_cluster_roc_serial_min_gap"] == -1
+
+
+def test_roc_serial_adjacency_is_independent_of_row_order() -> None:
+    """Adjacency is a group property, so input ordering cannot change it."""
+
+    rows = [
+        {
+            "id": f"serial-{serial}",
+            "cin": _cohort_cin(state="DL", year=2020, serial=serial),
+            "address": "1 SHELL LANE",
+            "registered_on": date(2020, 1, 2),
+            "capital": 100_000,
+            "nic_code": "72900",
+            "name": f"Company {serial} Private Limited",
+        }
+        for serial in (100, 105, 106)
+    ]
+    forward = _observations(rows)
+    reversed_rows = _observations(list(reversed(rows)))
+
+    for company_id, row in forward.items():
+        for column in (
+            "registrar_year_cohort_company_count",
+            "address_cluster_cohort_peer_count",
+            "address_cluster_roc_serial_min_gap",
+        ):
+            assert row[column] == reversed_rows[company_id][column]
+
+
+def test_cin_record_disagreement_is_surfaced_per_company() -> None:
+    """The identifier's own segments are compared against the record columns."""
+
+    observations = _observations(
+        [
+            {
+                "id": "agrees",
+                "cin": _cohort_cin(state="DL", year=2020, serial=100),
+                "address": "1 SHELL LANE",
+                "registered_on": date(2020, 6, 1),
+                "capital": 100_000,
+                "nic_code": "72900",
+                "name": "Alpha Private Limited",
+            },
+            {
+                "id": "year-disagrees",
+                "cin": _cohort_cin(state="DL", year=2020, serial=101),
+                "address": "1 SHELL LANE",
+                "registered_on": date(2019, 6, 1),
+                "capital": 100_000,
+                "nic_code": "72900",
+                "name": "Beta Private Limited",
+            },
+        ]
+    )
+
+    agrees = observations["agrees"]
+    assert agrees["cin_year_disagrees_with_record"] is False
+    assert agrees["cin_nic_division_disagrees_with_record"] is False
+    assert agrees["cin_record_disagreement_count"] == 0
+    disagrees = observations["year-disagrees"]
+    assert disagrees["cin_year_disagrees_with_record"] is True
+    assert disagrees["cin_record_disagreement_count"] == 1
